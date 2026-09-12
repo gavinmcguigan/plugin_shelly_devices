@@ -63,6 +63,7 @@ def parse_shelly_reachable(string_table: StringTable) -> ReachableSection:
 
 def host_label_function_shelly_reachable(section: ReachableSection) -> HostLabelGenerator:
     yield HostLabel("shelly/alias", section["alias"])
+    yield HostLabel("shelly/device", "yes")
 
 
 agent_section_shelly_reachable = AgentSection(
