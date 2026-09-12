@@ -197,10 +197,8 @@ check_plugin_shelly_connectivity = CheckPlugin(
 )
 
 
-def discover_shelly_switch(section_shelly_status: StatusSection | None) -> DiscoveryResult:
-    if section_shelly_status is None:
-        return
-    for key in section_shelly_status:
+def discover_shelly_switch(section: StatusSection) -> DiscoveryResult:
+    for key in section:
         if key.startswith("switch:"):
             yield Service(item=key.split(":", 1)[1])
 
@@ -212,11 +210,9 @@ class SwitchParams(TypedDict):
 def check_shelly_switch(
     item: str,
     params: SwitchParams,
-    section_shelly_status: StatusSection | None,
+    section: StatusSection,
 ) -> CheckResult:
-    if section_shelly_status is None:
-        return
-    switch = section_shelly_status.get(f"switch:{item}")
+    switch = section.get(f"switch:{item}")
     if switch is None:
         return
 
