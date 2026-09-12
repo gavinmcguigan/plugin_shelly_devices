@@ -233,10 +233,10 @@ def check_shelly_switch(item: str, section: StatusSection) -> CheckResult:
         return
 
     yield Result(state=State.OK, summary="On" if switch["output"] else "Off")
-    yield Metric("power", switch["apower"])
-    yield Metric("current", switch["current"])
-    yield Metric("voltage", switch["voltage"])
-    yield Metric("energy_total", switch["aenergy"]["total"])
+    yield Metric("shelly_power", switch["apower"])
+    yield Metric("shelly_current", switch["current"])
+    yield Metric("shelly_voltage", switch["voltage"])
+    yield Metric("shelly_energy_total", switch["aenergy"]["total"])
 
 
 check_plugin_shelly_switch = CheckPlugin(
