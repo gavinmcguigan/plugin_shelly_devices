@@ -83,13 +83,17 @@ is parsed once, consumed by three different check plugins):
 
 ## Part 6: `graphing/shelly.py` -- what the numbers look like
 
-Registers proper units/colors for every custom metric, and a
-`Perfometer` so the services list shows power (Watts) in its compact
-graph column instead of whichever metric an unregistered fallback would
-otherwise pick. Metric names are namespaced `shelly_*` since metric
-names are global across all of Checkmk, not scoped per plugin -- bare
-names like `power`/`current` risk colliding with existing core checks
-(UPS/PDU, etc).
+Registers proper units/colors for every custom metric, plus a
+`Perfometer` per service so the compact Perf-O-Meter column actually
+shows something -- a `Metric` definition alone only controls graphing
+units/colors, it does **not** make a Perf-O-Meter appear; that needs
+its own separate `Perfometer` registration naming the metric(s) to show.
+Switch gets power (Watts); Reachability gets its consecutive-failure
+count; Connectivity stacks all three of bluetooth/mqtt/cloud into one
+bar rather than picking a single representative metric. Metric names
+are namespaced `shelly_*` since metric names are global across all of
+Checkmk, not scoped per plugin -- bare names like `power`/`current`
+risk colliding with existing core checks (UPS/PDU, etc).
 
 ## How a device becomes a host, without ever creating one by hand
 
