@@ -82,7 +82,7 @@ def query_device(device: Device) -> None:
         except requests.exceptions.RequestException as e:
             LOGGING.error("Failed to query %s (%s): %s", device.alias, device.host, e)
             with SectionWriter("shelly_reachable") as w:
-                w.append_json({"reachable": False})
+                w.append_json({"alias": device.alias, "reachable": False})
             return
         with SectionWriter("shelly_device_info") as w:
             w.append_json(device_info)
@@ -91,7 +91,7 @@ def query_device(device: Device) -> None:
         with SectionWriter("shelly_ble_config") as w:
             w.append_json(ble_config)
         with SectionWriter("shelly_reachable") as w:
-            w.append_json({"reachable": True})
+            w.append_json({"alias": device.alias, "reachable": True})
 
 
 def agent_shelly_main(args: Args) -> int:
