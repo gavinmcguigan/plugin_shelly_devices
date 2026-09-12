@@ -123,7 +123,20 @@ def discover_shelly_info(section: StatusSection) -> DiscoveryResult:
     yield Service()
 
 
-def check_shelly_info(section: StatusSection) -> CheckResult:
+class TemperatureParams(TypedDict):
+    temperature: SimpleLevelsConfigModel[float]
+
+
+def _device_temperature_c(section: StatusSection) -> float | None:
+    # Shared across every switch channel a device has (one physical
+    # sensor) -- any channel's reading represents the whole device.
+    for key, value in section.items():
+        if key.startswith("switch:"):
+            return value["temperature"]["tC"]
+    return None
+
+
+def check_shelly_info(params: TemperatureParams, section: StatusSection) -> CheckResult:
     sys_status = section["sys"]
 
     uptime = sys_status["uptime"]
@@ -140,6 +153,15 @@ def check_shelly_info(section: StatusSection) -> CheckResult:
     else:
         yield Result(state=State.OK, summary="Firmware up to date")
 
+    if (temperature := _device_temperature_c(section)) is not None:
+        yield from check_levels(
+            temperature,
+            label="Temperature",
+            metric_name="temp",
+            render_func=lambda v: f"{v:.1f} °C",
+            levels_upper=params["temperature"],
+        )
+
 
 check_plugin_shelly_info = CheckPlugin(
     name="shelly_info",
@@ -147,6 +169,8 @@ check_plugin_shelly_info = CheckPlugin(
     service_name="Shelly Info",
     discovery_function=discover_shelly_info,
     check_function=check_shelly_info,
+    check_ruleset_name="shelly_temperature",
+    check_default_parameters=TemperatureParams(temperature=("fixed", (70.0, 80.0))),
 )
 
 Expectation = Literal["enabled", "disabled", "ignore"]
@@ -203,15 +227,7 @@ def discover_shelly_switch(section: StatusSection) -> DiscoveryResult:
             yield Service(item=key.split(":", 1)[1])
 
 
-class SwitchParams(TypedDict):
-    temperature: SimpleLevelsConfigModel[float]
-
-
-def check_shelly_switch(
-    item: str,
-    params: SwitchParams,
-    section: StatusSection,
-) -> CheckResult:
+def check_shelly_switch(item: str, section: StatusSection) -> CheckResult:
     switch = section.get(f"switch:{item}")
     if switch is None:
         return
@@ -222,14 +238,6 @@ def check_shelly_switch(
     yield Metric("voltage", switch["voltage"])
     yield Metric("energy_total", switch["aenergy"]["total"])
 
-    yield from check_levels(
-        switch["temperature"]["tC"],
-        label="Temperature",
-        metric_name="temp",
-        render_func=lambda v: f"{v:.1f} °C",
-        levels_upper=params["temperature"],
-    )
-
 
 check_plugin_shelly_switch = CheckPlugin(
     name="shelly_switch",
@@ -237,6 +245,4 @@ check_plugin_shelly_switch = CheckPlugin(
     service_name="Shelly Switch %s",
     discovery_function=discover_shelly_switch,
     check_function=check_shelly_switch,
-    check_ruleset_name="shelly_switch",
-    check_default_parameters=SwitchParams(temperature=("fixed", (70.0, 80.0))),
 )

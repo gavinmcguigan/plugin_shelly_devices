@@ -154,7 +154,7 @@ rule_spec_shelly_connectivity = CheckParameters(
 )
 
 
-def _switch_parameter_form() -> Dictionary:
+def _temperature_parameter_form() -> Dictionary:
     return Dictionary(
         elements={
             "temperature": DictElement[SimpleLevelsConfigModel[float]](
@@ -172,10 +172,10 @@ def _switch_parameter_form() -> Dictionary:
     )
 
 
-rule_spec_shelly_switch = CheckParameters(
-    name="shelly_switch",
+rule_spec_shelly_temperature = CheckParameters(
+    name="shelly_temperature",
     topic=Topic.APPLICATIONS,
-    parameter_form=_switch_parameter_form,
-    title=Title("Shelly switch temperature levels"),
+    parameter_form=_temperature_parameter_form,
+    title=Title("Shelly temperature levels"),
     condition=HostCondition(),
 )
