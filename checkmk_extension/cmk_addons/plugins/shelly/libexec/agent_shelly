@@ -1,0 +1,7 @@
+#!/bin/sh
+# Copied into the OMD site at:
+#   ~/local/lib/python3/cmk_addons/plugins/shelly/libexec/agent_shelly
+#
+# Thin shim core actually executes -- see server_side_calls/shelly.py
+# for how the argv below is built.
+exec python3 -m cmk_addons.plugins.shelly.special_agent.agent_shelly "$@"
