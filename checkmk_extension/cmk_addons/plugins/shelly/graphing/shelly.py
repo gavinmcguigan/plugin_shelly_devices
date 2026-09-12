@@ -78,3 +78,19 @@ metric_shelly_cloud_connected = Metric(
     unit=Unit(DecimalNotation(""), StrictPrecision(0)),
     color=Color.LIGHT_PURPLE,
 )
+
+perfometer_shelly_consecutive_failures = Perfometer(
+    name="shelly_consecutive_failures",
+    focus_range=FocusRange(Closed(0), Open(10)),
+    segments=["shelly_consecutive_failures"],
+)
+
+perfometer_shelly_connectivity = Perfometer(
+    name="shelly_connectivity",
+    focus_range=FocusRange(Closed(0), Closed(3)),
+    segments=[
+        "shelly_bluetooth_enabled",
+        "shelly_mqtt_connected",
+        "shelly_cloud_connected",
+    ],
+)
