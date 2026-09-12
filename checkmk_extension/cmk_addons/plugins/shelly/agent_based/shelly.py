@@ -227,16 +227,34 @@ def discover_shelly_switch(section: StatusSection) -> DiscoveryResult:
             yield Service(item=key.split(":", 1)[1])
 
 
-def check_shelly_switch(item: str, section: StatusSection) -> CheckResult:
+class SwitchParams(TypedDict):
+    power: SimpleLevelsConfigModel[float]
+    current: SimpleLevelsConfigModel[float]
+
+
+def check_shelly_switch(item: str, params: SwitchParams, section: StatusSection) -> CheckResult:
     switch = section.get(f"switch:{item}")
     if switch is None:
         return
 
     yield Result(state=State.OK, summary="On" if switch["output"] else "Off")
-    yield Metric("shelly_power", switch["apower"])
-    yield Metric("shelly_current", switch["current"])
     yield Metric("shelly_voltage", switch["voltage"])
     yield Metric("shelly_energy_total", switch["aenergy"]["total"])
+
+    yield from check_levels(
+        switch["apower"],
+        label="Power",
+        metric_name="shelly_power",
+        render_func=lambda v: f"{v:.1f} W",
+        levels_upper=params["power"],
+    )
+    yield from check_levels(
+        switch["current"],
+        label="Current",
+        metric_name="shelly_current",
+        render_func=lambda v: f"{v:.2f} A",
+        levels_upper=params["current"],
+    )
 
 
 check_plugin_shelly_switch = CheckPlugin(
@@ -245,4 +263,9 @@ check_plugin_shelly_switch = CheckPlugin(
     service_name="Shelly Switch %s",
     discovery_function=discover_shelly_switch,
     check_function=check_shelly_switch,
+    check_ruleset_name="shelly_switch",
+    check_default_parameters=SwitchParams(
+        power=("fixed", (2000.0, 2500.0)),
+        current=("fixed", (10.0, 13.0)),
+    ),
 )

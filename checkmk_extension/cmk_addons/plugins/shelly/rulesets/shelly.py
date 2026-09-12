@@ -179,3 +179,41 @@ rule_spec_shelly_temperature = CheckParameters(
     title=Title("Shelly temperature levels"),
     condition=HostCondition(),
 )
+
+
+def _switch_parameter_form() -> Dictionary:
+    return Dictionary(
+        elements={
+            "power": DictElement[SimpleLevelsConfigModel[float]](
+                required=True,
+                parameter_form=SimpleLevels(
+                    title=Title("Upper levels for power"),
+                    level_direction=LevelDirection.UPPER,
+                    form_spec_template=Float(),
+                    prefill_levels_type=DefaultValue(LevelsType.FIXED),
+                    prefill_fixed_levels=InputHint((2000.0, 2500.0)),
+                    migrate=migrate_to_float_simple_levels,
+                ),
+            ),
+            "current": DictElement[SimpleLevelsConfigModel[float]](
+                required=True,
+                parameter_form=SimpleLevels(
+                    title=Title("Upper levels for current"),
+                    level_direction=LevelDirection.UPPER,
+                    form_spec_template=Float(),
+                    prefill_levels_type=DefaultValue(LevelsType.FIXED),
+                    prefill_fixed_levels=InputHint((10.0, 13.0)),
+                    migrate=migrate_to_float_simple_levels,
+                ),
+            ),
+        }
+    )
+
+
+rule_spec_shelly_switch = CheckParameters(
+    name="shelly_switch",
+    topic=Topic.APPLICATIONS,
+    parameter_form=_switch_parameter_form,
+    title=Title("Shelly switch power/current levels"),
+    condition=HostCondition(),
+)
