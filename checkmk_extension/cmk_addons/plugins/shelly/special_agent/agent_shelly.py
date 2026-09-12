@@ -77,11 +77,14 @@ def query_device(device: Device) -> None:
     with ConditionalPiggybackSection(device.alias):
         try:
             device_info = session.get(f"{base_url}/rpc/Shelly.GetDeviceInfo")
+            status = session.get(f"{base_url}/rpc/Shelly.GetStatus")
         except (requests.exceptions.ConnectionError, requests.exceptions.HTTPError) as e:
             LOGGING.error("Failed to query %s (%s): %s", device.alias, device.host, e)
             return
         with SectionWriter("shelly_device_info") as w:
             w.append_json(device_info)
+        with SectionWriter("shelly_status") as w:
+            w.append_json(status)
 
 
 def agent_shelly_main(args: Args) -> int:
