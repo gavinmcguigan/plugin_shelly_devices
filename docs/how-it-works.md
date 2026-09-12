@@ -43,24 +43,37 @@ executable file path to invoke, not a Python function.
 
 ## Part 4: `special_agent/agent_shelly.py` -- the real logic
 
-Parses the repeated device groups back into a list, then for each
-device:
+Parses the repeated device groups back into a list, then works in two
+separate phases:
 
-1. Calls three Shelly HTTP RPC endpoints: `Shelly.GetDeviceInfo`,
-   `Shelly.GetStatus` (switches, sys, connectivity, wifi -- everything
-   in one call, self-revealing however many `switch:N` channels a
-   device actually has), and `Ble.GetConfig`.
-2. Wraps all of it in `ConditionalPiggybackSection(device.alias)` --
-   this is the mechanism that makes the data show up under a *different*
-   hostname (the device's alias) than the host the special agent
-   actually ran on.
-3. Always writes a `shelly_reachable` marker (`{"alias": ..., "reachable":
-   true/false}`), even on failure -- this is what lets the Reachability
-   check track consecutive failures instead of the host just going
-   silently stale.
-4. Catches `requests.exceptions.RequestException` (the base class for
-   every error `requests` raises, including timeouts) per device, so
-   one unreachable device doesn't take the rest down with it.
+**Fetch phase (concurrent, async)** -- for every device, calls three
+Shelly HTTP RPC endpoints via `httpx.AsyncClient`: `Shelly.GetDeviceInfo`,
+`Shelly.GetStatus` (switches, sys, connectivity, wifi -- everything in
+one call, self-revealing however many `switch:N` channels a device
+actually has), and `Ble.GetConfig`. All devices are fetched
+concurrently via `asyncio.gather`, since Shelly's HTTP transport
+doesn't support batching multiple RPC calls into one request (a
+JSON-RPC array body just gets a flat `400 Bad Request` -- tested
+directly against a real device). Catches `httpx.HTTPError` (the base
+class for every error `httpx` raises, including timeouts) per device,
+so one unreachable device doesn't take the rest down with it.
+Measured ~1.6x-3.2x faster across three runs against 4 real devices,
+compared to the earlier sequential `requests`-based version.
+
+**Write phase (sequential, synchronous)** -- once every device's fetch
+has completed (or failed), each device's data gets written out one at a
+time, wrapped in `ConditionalPiggybackSection(device.alias)` -- the
+mechanism that makes the data show up under a *different* hostname
+(the device's alias) than the host the special agent actually ran on.
+Always writes a `shelly_reachable` marker (`{"alias": ..., "reachable":
+true/false}`), even on failure -- this is what lets the Reachability
+check track consecutive failures instead of the host just going
+silently stale.
+
+These two phases are kept deliberately separate: writing piggyback
+sections mutates stdout's "current piggyback target," which would risk
+interleaving two devices' output if writes happened while other
+devices were still concurrently mid-fetch.
 
 ## Part 5: `agent_based/shelly.py` -- four check plugins
 
