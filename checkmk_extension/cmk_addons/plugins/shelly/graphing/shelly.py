@@ -7,7 +7,14 @@
 # core checks (UPS/PDU, etc).
 
 from cmk.graphing.v1 import Title
-from cmk.graphing.v1.metrics import Color, DecimalNotation, Metric, SINotation, Unit
+from cmk.graphing.v1.metrics import (
+    Color,
+    DecimalNotation,
+    Metric,
+    SINotation,
+    StrictPrecision,
+    Unit,
+)
 from cmk.graphing.v1.perfometers import Closed, FocusRange, Open, Perfometer
 
 metric_shelly_power = Metric(
@@ -42,4 +49,32 @@ perfometer_shelly_power = Perfometer(
     name="shelly_power",
     focus_range=FocusRange(Closed(0), Open(1000)),
     segments=["shelly_power"],
+)
+
+metric_shelly_consecutive_failures = Metric(
+    name="shelly_consecutive_failures",
+    title=Title("Consecutive failed checks"),
+    unit=Unit(DecimalNotation(""), StrictPrecision(0)),
+    color=Color.RED,
+)
+
+metric_shelly_bluetooth_enabled = Metric(
+    name="shelly_bluetooth_enabled",
+    title=Title("Bluetooth enabled"),
+    unit=Unit(DecimalNotation(""), StrictPrecision(0)),
+    color=Color.LIGHT_BLUE,
+)
+
+metric_shelly_mqtt_connected = Metric(
+    name="shelly_mqtt_connected",
+    title=Title("MQTT connected"),
+    unit=Unit(DecimalNotation(""), StrictPrecision(0)),
+    color=Color.LIGHT_GREEN,
+)
+
+metric_shelly_cloud_connected = Metric(
+    name="shelly_cloud_connected",
+    title=Title("Cloud connected"),
+    unit=Unit(DecimalNotation(""), StrictPrecision(0)),
+    color=Color.LIGHT_PURPLE,
 )

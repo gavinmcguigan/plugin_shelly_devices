@@ -88,10 +88,12 @@ def check_shelly_reachable(params: ReachabilityParams, section: ReachableSection
     if section["reachable"]:
         value_store["consecutive_failures"] = 0
         yield Result(state=State.OK, summary="Reachable")
+        yield Metric("shelly_consecutive_failures", 0)
         return
 
     consecutive_failures += 1
     value_store["consecutive_failures"] = consecutive_failures
+    yield Metric("shelly_consecutive_failures", consecutive_failures)
 
     threshold = params["failures_before_crit"]
     if consecutive_failures >= threshold:
@@ -205,9 +207,19 @@ def check_shelly_connectivity(
 ) -> CheckResult:
     if section_shelly_status is None or section_shelly_ble_config is None:
         return
-    yield _check_expectation("Bluetooth", section_shelly_ble_config["enable"], params["bluetooth"])
-    yield _check_expectation("MQTT", section_shelly_status["mqtt"]["connected"], params["mqtt"])
-    yield _check_expectation("Cloud", section_shelly_status["cloud"]["connected"], params["cloud"])
+
+    bluetooth_enabled = section_shelly_ble_config["enable"]
+    mqtt_connected = section_shelly_status["mqtt"]["connected"]
+    cloud_connected = section_shelly_status["cloud"]["connected"]
+
+    yield _check_expectation("Bluetooth", bluetooth_enabled, params["bluetooth"])
+    yield Metric("shelly_bluetooth_enabled", 1.0 if bluetooth_enabled else 0.0)
+
+    yield _check_expectation("MQTT", mqtt_connected, params["mqtt"])
+    yield Metric("shelly_mqtt_connected", 1.0 if mqtt_connected else 0.0)
+
+    yield _check_expectation("Cloud", cloud_connected, params["cloud"])
+    yield Metric("shelly_cloud_connected", 1.0 if cloud_connected else 0.0)
 
 
 check_plugin_shelly_connectivity = CheckPlugin(
