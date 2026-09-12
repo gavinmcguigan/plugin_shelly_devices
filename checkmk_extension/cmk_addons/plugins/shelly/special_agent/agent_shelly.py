@@ -1,14 +1,24 @@
 #!/usr/bin/env python3
+# Copied into the OMD site at:
+#   ~/local/lib/python3/cmk_addons/plugins/shelly/special_agent/agent_shelly.py
+#
+# Special agent for the shelly extension: queries each configured Shelly
+# device's HTTP RPC API and reports its data as piggyback for that
+# device's alias. Built iteratively -- this first version only calls
+# Shelly.GetDeviceInfo; Shelly.GetStatus and Ble.GetConfig follow in
+# later commits.
 
 import base64
 import logging
 import sys
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Any
 
 import requests
 
 from cmk.special_agents.v0_unstable.agent_common import (
+    ConditionalPiggybackSection,
     SectionWriter,
     special_agent_main,
 )
@@ -20,82 +30,67 @@ from cmk.special_agents.v0_unstable.argument_parsing import (
 LOGGING = logging.getLogger("agent_shelly")
 
 
+@dataclass(frozen=True)
+class Device:
+    alias: str
+    host: str
+    username: str
+    password: str
+
+
 class SessionManager:
-    def __init__(
-        self, username: str, password: str, timeout: int, no_cert_check: bool = False
-    ) -> None:
+    def __init__(self, username: str, password: str, timeout: int = 10) -> None:
         self._session = requests.Session()
-        auth_encoded = base64.b64encode(f"{username}:{password}".encode()).decode()
-        self._session.headers.update({"Authorization": f"Basic {auth_encoded}"})
-        self._verify = bool(no_cert_check)
+        if username:
+            auth_encoded = base64.b64encode(f"{username}:{password}".encode()).decode()
+            self._session.headers.update({"Authorization": f"Basic {auth_encoded}"})
         self._timeout = timeout
 
-    def get(self, url: str, params: dict[str, str] | None = None) -> Any:
-        try:
-            resp = self._session.get(
-                url, params=params, verify=self._verify, timeout=self._timeout
-            )
-        except requests.exceptions.ConnectionError as e:
-            LOGGING.error("Connection failed: %s", e)
-            raise e
-
-        try:
-            resp.raise_for_status()
-        except requests.exceptions.HTTPError as e:
-            LOGGING.error("HTTP error: %s", e)
-            raise e
-
+    def get(self, url: str) -> Any:
+        resp = self._session.get(url, timeout=self._timeout)
+        resp.raise_for_status()
         return resp.json()
 
 
 def parse_arguments(argv: Sequence[str] | None) -> Args:
     parser = create_default_argument_parser(description=__doc__)
-    parser.add_argument(
-        "-u", "--username", type=str, required=False, help="Username for login"
-    )
-    parser.add_argument(
-        "-p", "--password", type=str, required=False, help="Password for login"
-    )
-    parser.add_argument(
-        "-P", "--port", type=int, required=False, default=80, help="Port for connection"
-    )
-    parser.add_argument(
-        "--timeout",
-        type=int,
-        default=10,
-        help="Timeout in seconds for network connects (default=10)",
-    )
-    parser.add_argument(
-        "--no-cert-check",
-        action="store_true",
-        help="Disable verification of the servers ssl certificate",
-    )
-    parser.add_argument("host", help="Host name or IP address of the Shelly device")
+    parser.add_argument("--device", action="append", default=[], dest="devices")
+    parser.add_argument("--host", action="append", default=[], dest="hosts")
+    parser.add_argument("--username", action="append", default=[], dest="usernames")
+    parser.add_argument("--password", action="append", default=[], dest="passwords")
     return parser.parse_args(argv)
 
 
-def write_section(data: dict[str, Any], section_name: str) -> None:
-    with SectionWriter(f"shelly_{section_name}") as w:
-        w.append_json(data)
+def devices_from_args(args: Args) -> list[Device]:
+    return [
+        Device(alias=alias, host=host, username=username, password=password)
+        for alias, host, username, password in zip(
+            args.devices, args.hosts, args.usernames, args.passwords
+        )
+    ]
+
+
+def query_device(device: Device) -> None:
+    session = SessionManager(device.username, device.password)
+    base_url = f"http://{device.host}"
+
+    with ConditionalPiggybackSection(device.alias):
+        try:
+            device_info = session.get(f"{base_url}/rpc/Shelly.GetDeviceInfo")
+        except (requests.exceptions.ConnectionError, requests.exceptions.HTTPError) as e:
+            LOGGING.error("Failed to query %s (%s): %s", device.alias, device.host, e)
+            return
+        with SectionWriter("shelly_device_info") as w:
+            w.append_json(device_info)
 
 
 def agent_shelly_main(args: Args) -> int:
-    """Establish a connection to a Shelly device and call the different endpoints to retrieve data"""
-    session = SessionManager(
-        args.username, args.password, args.timeout, args.no_cert_check
-    )
-    base_url = f"http://{args.host}:{args.port}"
-    try:
-        write_section(session.get(f"{base_url}/rpc/Shelly.GetDeviceInfo"), "device_info")
-        write_section(session.get(f"{base_url}/rpc/Sys.GetStatus"), "system_status")
-        write_section(session.get(f"{base_url}/rpc/Switch.GetStatus?id=0"), "switch_status")
-    except (requests.exceptions.ConnectionError, requests.exceptions.HTTPError):
-        return 1
+    for device in devices_from_args(args):
+        query_device(device)
     return 0
 
 
 def main() -> int:
-    """Main entry point to be used"""
     return special_agent_main(parse_arguments, agent_shelly_main)
 
 
