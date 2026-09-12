@@ -6,15 +6,17 @@
 
 from cmk.rulesets.v1 import Help, Label, Title
 from cmk.rulesets.v1.form_specs import (
+    DefaultValue,
     DictElement,
     Dictionary,
+    Integer,
     List,
     Password,
     String,
     migrate_to_password,
     validators,
 )
-from cmk.rulesets.v1.rule_specs import SpecialAgent, Topic
+from cmk.rulesets.v1.rule_specs import CheckParameters, HostCondition, SpecialAgent, Topic
 
 
 def _device_form() -> Dictionary:
@@ -72,4 +74,32 @@ rule_spec_special_agent_shelly = SpecialAgent(
     title=Title("Shelly devices"),
     topic=Topic.APPLICATIONS,
     parameter_form=_special_agent_form,
+)
+
+
+def _reachability_parameter_form() -> Dictionary:
+    return Dictionary(
+        elements={
+            "failures_before_crit": DictElement(
+                required=True,
+                parameter_form=Integer(
+                    title=Title("Consecutive failed checks before CRIT"),
+                    help_text=Help(
+                        "Below this many consecutive failed checks in a row, an "
+                        "unreachable device is only WARN, not CRIT."
+                    ),
+                    prefill=DefaultValue(3),
+                    custom_validate=(validators.NumberInRange(min_value=1),),
+                ),
+            ),
+        }
+    )
+
+
+rule_spec_shelly_reachability = CheckParameters(
+    name="shelly_reachability",
+    topic=Topic.APPLICATIONS,
+    parameter_form=_reachability_parameter_form,
+    title=Title("Shelly reachability thresholds"),
+    condition=HostCondition(),
 )
