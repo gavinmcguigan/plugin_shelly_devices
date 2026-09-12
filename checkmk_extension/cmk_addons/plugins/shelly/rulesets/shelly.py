@@ -12,6 +12,8 @@ from cmk.rulesets.v1.form_specs import (
     Integer,
     List,
     Password,
+    SingleChoice,
+    SingleChoiceElement,
     String,
     migrate_to_password,
     validators,
@@ -101,5 +103,45 @@ rule_spec_shelly_reachability = CheckParameters(
     topic=Topic.APPLICATIONS,
     parameter_form=_reachability_parameter_form,
     title=Title("Shelly reachability thresholds"),
+    condition=HostCondition(),
+)
+
+
+def _expectation_field(title: Title) -> SingleChoice:
+    return SingleChoice(
+        title=title,
+        elements=[
+            SingleChoiceElement("enabled", Title("Expect enabled")),
+            SingleChoiceElement("disabled", Title("Expect disabled")),
+            SingleChoiceElement("ignore", Title("Ignore")),
+        ],
+        prefill=DefaultValue("ignore"),
+    )
+
+
+def _connectivity_parameter_form() -> Dictionary:
+    return Dictionary(
+        elements={
+            "bluetooth": DictElement(
+                required=True,
+                parameter_form=_expectation_field(Title("Bluetooth")),
+            ),
+            "mqtt": DictElement(
+                required=True,
+                parameter_form=_expectation_field(Title("MQTT")),
+            ),
+            "cloud": DictElement(
+                required=True,
+                parameter_form=_expectation_field(Title("Cloud")),
+            ),
+        }
+    )
+
+
+rule_spec_shelly_connectivity = CheckParameters(
+    name="shelly_connectivity",
+    topic=Topic.APPLICATIONS,
+    parameter_form=_connectivity_parameter_form,
+    title=Title("Shelly connectivity expectations"),
     condition=HostCondition(),
 )
