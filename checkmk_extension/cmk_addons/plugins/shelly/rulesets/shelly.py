@@ -9,12 +9,19 @@ from cmk.rulesets.v1.form_specs import (
     DefaultValue,
     DictElement,
     Dictionary,
+    Float,
+    InputHint,
     Integer,
+    LevelDirection,
+    LevelsType,
     List,
     Password,
+    SimpleLevels,
+    SimpleLevelsConfigModel,
     SingleChoice,
     SingleChoiceElement,
     String,
+    migrate_to_float_simple_levels,
     migrate_to_password,
     validators,
 )
@@ -143,5 +150,32 @@ rule_spec_shelly_connectivity = CheckParameters(
     topic=Topic.APPLICATIONS,
     parameter_form=_connectivity_parameter_form,
     title=Title("Shelly connectivity expectations"),
+    condition=HostCondition(),
+)
+
+
+def _switch_parameter_form() -> Dictionary:
+    return Dictionary(
+        elements={
+            "temperature": DictElement[SimpleLevelsConfigModel[float]](
+                required=True,
+                parameter_form=SimpleLevels(
+                    title=Title("Upper levels for temperature"),
+                    level_direction=LevelDirection.UPPER,
+                    form_spec_template=Float(),
+                    prefill_levels_type=DefaultValue(LevelsType.FIXED),
+                    prefill_fixed_levels=InputHint((70.0, 80.0)),
+                    migrate=migrate_to_float_simple_levels,
+                ),
+            ),
+        }
+    )
+
+
+rule_spec_shelly_switch = CheckParameters(
+    name="shelly_switch",
+    topic=Topic.APPLICATIONS,
+    parameter_form=_switch_parameter_form,
+    title=Title("Shelly switch temperature levels"),
     condition=HostCondition(),
 )

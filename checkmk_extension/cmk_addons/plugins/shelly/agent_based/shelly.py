@@ -1,8 +1,8 @@
 # Copied into the OMD site at:
 #   ~/local/lib/python3/cmk_addons/plugins/shelly/agent_based/shelly.py
 #
-# Reachability, Info, and Connectivity check plugins for this extension.
-# Per-switch checks follow in a later commit.
+# All check plugins for this extension: Reachability, Info,
+# Connectivity, and per-switch-channel checks.
 
 import json
 from typing import Any, Literal, TypedDict
@@ -19,9 +19,11 @@ from cmk.agent_based.v2 import (
     Service,
     State,
     StringTable,
+    check_levels,
     get_value_store,
     render,
 )
+from cmk.rulesets.v1.form_specs import SimpleLevelsConfigModel
 
 StatusSection = dict[str, Any]
 
@@ -191,4 +193,53 @@ check_plugin_shelly_connectivity = CheckPlugin(
     check_function=check_shelly_connectivity,
     check_ruleset_name="shelly_connectivity",
     check_default_parameters=ConnectivityParams(bluetooth="ignore", mqtt="ignore", cloud="ignore"),
+)
+
+
+def discover_shelly_switch(section_shelly_status: StatusSection | None) -> DiscoveryResult:
+    if section_shelly_status is None:
+        return
+    for key in section_shelly_status:
+        if key.startswith("switch:"):
+            yield Service(item=key.split(":", 1)[1])
+
+
+class SwitchParams(TypedDict):
+    temperature: SimpleLevelsConfigModel[float]
+
+
+def check_shelly_switch(
+    item: str,
+    params: SwitchParams,
+    section_shelly_status: StatusSection | None,
+) -> CheckResult:
+    if section_shelly_status is None:
+        return
+    switch = section_shelly_status.get(f"switch:{item}")
+    if switch is None:
+        return
+
+    yield Result(state=State.OK, summary="On" if switch["output"] else "Off")
+    yield Metric("power", switch["apower"])
+    yield Metric("current", switch["current"])
+    yield Metric("voltage", switch["voltage"])
+    yield Metric("energy_total", switch["aenergy"]["total"])
+
+    yield from check_levels(
+        switch["temperature"]["tC"],
+        label="Temperature",
+        metric_name="temp",
+        render_func=lambda v: f"{v:.1f} °C",
+        levels_upper=params["temperature"],
+    )
+
+
+check_plugin_shelly_switch = CheckPlugin(
+    name="shelly_switch",
+    sections=["shelly_status"],
+    service_name="Shelly Switch %s",
+    discovery_function=discover_shelly_switch,
+    check_function=check_shelly_switch,
+    check_ruleset_name="shelly_switch",
+    check_default_parameters=SwitchParams(temperature=("fixed", (70.0, 80.0))),
 )
