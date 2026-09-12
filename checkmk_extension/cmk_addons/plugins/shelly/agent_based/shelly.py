@@ -1,11 +1,11 @@
 # Copied into the OMD site at:
 #   ~/local/lib/python3/cmk_addons/plugins/shelly/agent_based/shelly.py
 #
-# First check plugin in this extension: device reachability. Info,
-# connectivity, and per-switch checks follow in later commits.
+# Reachability and Info check plugins for this extension. Connectivity
+# and per-switch checks follow in later commits.
 
 import json
-from typing import TypedDict
+from typing import Any, TypedDict
 
 from cmk.agent_based.v2 import (
     AgentSection,
@@ -14,11 +14,25 @@ from cmk.agent_based.v2 import (
     DiscoveryResult,
     HostLabel,
     HostLabelGenerator,
+    Metric,
     Result,
     Service,
     State,
     StringTable,
     get_value_store,
+    render,
+)
+
+StatusSection = dict[str, Any]
+
+
+def parse_shelly_status(string_table: StringTable) -> StatusSection:
+    return json.loads(string_table[0][0])
+
+
+agent_section_shelly_status = AgentSection(
+    name="shelly_status",
+    parse_function=parse_shelly_status,
 )
 
 
@@ -85,4 +99,35 @@ check_plugin_shelly_reachable = CheckPlugin(
     check_function=check_shelly_reachable,
     check_ruleset_name="shelly_reachability",
     check_default_parameters=ReachabilityParams(failures_before_crit=3),
+)
+
+
+def discover_shelly_info(section: StatusSection) -> DiscoveryResult:
+    yield Service()
+
+
+def check_shelly_info(section: StatusSection) -> CheckResult:
+    sys_status = section["sys"]
+
+    uptime = sys_status["uptime"]
+    yield Result(state=State.OK, summary=f"Up {render.timespan(uptime)}")
+    yield Metric("uptime", uptime)
+
+    if sys_status["restart_required"]:
+        yield Result(state=State.WARN, summary="Restart required")
+    else:
+        yield Result(state=State.OK, summary="No restart required")
+
+    if sys_status["available_updates"]:
+        yield Result(state=State.WARN, summary="Firmware update available")
+    else:
+        yield Result(state=State.OK, summary="Firmware up to date")
+
+
+check_plugin_shelly_info = CheckPlugin(
+    name="shelly_info",
+    sections=["shelly_status"],
+    service_name="Shelly Info",
+    discovery_function=discover_shelly_info,
+    check_function=check_shelly_info,
 )
