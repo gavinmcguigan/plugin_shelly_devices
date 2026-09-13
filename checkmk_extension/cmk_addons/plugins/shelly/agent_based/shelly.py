@@ -84,6 +84,19 @@ agent_section_shelly_input_config = AgentSection(
 )
 
 
+SwitchConfigSection = dict[str, Any]
+
+
+def parse_shelly_switch_config(string_table: StringTable) -> SwitchConfigSection:
+    return json.loads(string_table[0][0])
+
+
+agent_section_shelly_switch_config = AgentSection(
+    name="shelly_switch_config",
+    parse_function=parse_shelly_switch_config,
+)
+
+
 class ReachableSection(TypedDict):
     alias: str
     reachable: bool
@@ -411,8 +424,13 @@ check_plugin_shelly_connectivity = CheckPlugin(
 )
 
 
-def discover_shelly_switch(section: StatusSection) -> DiscoveryResult:
-    for key in section:
+def discover_shelly_switch(
+    section_shelly_status: StatusSection | None,
+    section_shelly_switch_config: SwitchConfigSection | None,
+) -> DiscoveryResult:
+    if section_shelly_status is None:
+        return
+    for key in section_shelly_status:
         if key.startswith("switch:"):
             yield Service(item=key.split(":", 1)[1])
 
@@ -425,14 +443,22 @@ class SwitchParams(TypedDict):
 def check_shelly_switch(
     item: str,
     params: SwitchParams,
-    section: StatusSection,
+    section_shelly_status: StatusSection | None,
+    section_shelly_switch_config: SwitchConfigSection | None,
 ) -> CheckResult:
-    switch = section.get(f"switch:{item}")
+    if section_shelly_status is None:
+        return
+    switch = section_shelly_status.get(f"switch:{item}")
     if switch is None:
         return
 
+    name = None
+    if section_shelly_switch_config is not None:
+        name = section_shelly_switch_config.get(f"switch:{item}", {}).get("name")
+    label = f"Relay ({name})" if name else "Relay"
+
     yield Result(
-        state=State.OK, summary=f"Relay: {'On' if switch['output'] else 'Off'}"
+        state=State.OK, summary=f"{label}: {'On' if switch['output'] else 'Off'}"
     )
     yield Metric("shelly_voltage", switch["voltage"])
     yield Metric("shelly_energy_total", switch["aenergy"]["total"])
@@ -455,7 +481,7 @@ def check_shelly_switch(
 
 check_plugin_shelly_switch = CheckPlugin(
     name="shelly_switch",
-    sections=["shelly_status"],
+    sections=["shelly_status", "shelly_switch_config"],
     service_name="Shelly Relay %s",
     discovery_function=discover_shelly_switch,
     check_function=check_shelly_switch,

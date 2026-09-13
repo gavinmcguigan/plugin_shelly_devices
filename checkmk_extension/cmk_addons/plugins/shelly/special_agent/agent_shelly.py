@@ -104,15 +104,24 @@ async def fetch_device(device: Device) -> dict[str, Any] | None:
         status = await session.get(f"{base_url}/rpc/Shelly.GetStatus")
         ble_config = await session.get(f"{base_url}/rpc/Ble.GetConfig")
 
-        # Only the per-input config, not the whole-device Shelly.GetConfig --
-        # that includes WiFi/MQTT/cloud credentials in plaintext, which we
-        # don't want piggybacked into Checkmk's monitoring data.
+        # Only the per-input/per-switch config, not the whole-device
+        # Shelly.GetConfig -- that includes WiFi/MQTT/cloud credentials in
+        # plaintext, which we don't want piggybacked into Checkmk's
+        # monitoring data.
         input_config = {}
         for key in status:
             if key.startswith("input:"):
                 input_id = key.split(":", 1)[1]
                 input_config[key] = await session.get(
                     f"{base_url}/rpc/Input.GetConfig?id={input_id}"
+                )
+
+        switch_config = {}
+        for key in status:
+            if key.startswith("switch:"):
+                switch_id = key.split(":", 1)[1]
+                switch_config[key] = await session.get(
+                    f"{base_url}/rpc/Switch.GetConfig?id={switch_id}"
                 )
     except httpx.HTTPError as e:
         LOGGING.error("Failed to query %s (%s): %s", device.alias, device.host, e)
@@ -124,6 +133,7 @@ async def fetch_device(device: Device) -> dict[str, Any] | None:
         "status": status,
         "ble_config": ble_config,
         "input_config": input_config,
+        "switch_config": switch_config,
     }
 
 
@@ -145,6 +155,8 @@ def write_device(device: Device, data: dict[str, Any] | None) -> None:
             w.append_json(data["ble_config"])
         with SectionWriter("shelly_input_config") as w:
             w.append_json(data["input_config"])
+        with SectionWriter("shelly_switch_config") as w:
+            w.append_json(data["switch_config"])
         with SectionWriter("shelly_reachable") as w:
             w.append_json({"alias": device.alias, "reachable": True})
 
