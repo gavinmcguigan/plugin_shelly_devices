@@ -386,7 +386,9 @@ def check_shelly_switch(
     if switch is None:
         return
 
-    yield Result(state=State.OK, summary="On" if switch["output"] else "Off")
+    yield Result(
+        state=State.OK, summary=f"Relay: {'On' if switch['output'] else 'Off'}"
+    )
     yield Metric("shelly_voltage", switch["voltage"])
     yield Metric("shelly_energy_total", switch["aenergy"]["total"])
 
