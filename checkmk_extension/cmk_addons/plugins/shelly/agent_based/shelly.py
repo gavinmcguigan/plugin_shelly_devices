@@ -158,11 +158,13 @@ _SEVERITY_STATE: dict[Severity, State] = {
 }
 
 
-class TemperatureParams(TypedDict):
+class InfoParams(TypedDict):
     temperature: SimpleLevelsConfigModel[float]
+    wifi_signal: SimpleLevelsConfigModel[float]
     unset_password: Severity
     restart_required: Severity
     firmware_update_available: Severity
+    unexpected_reboot: Severity
 
 
 def _device_temperature_c(section: StatusSection) -> float | None:
@@ -174,8 +176,28 @@ def _device_temperature_c(section: StatusSection) -> float | None:
     return None
 
 
+# Shelly's reset_reason isn't documented by Shelly itself, but observed
+# values line up with Espressif's esp_reset_reason_t enum (these devices
+# run on ESP32 hardware) -- see
+# https://docs.espressif.com/projects/esp-idf/en/v4.4.3/esp32/api-reference/system/system.html
+_RESET_REASON_NAMES: dict[int, str] = {
+    0: "Unknown",
+    1: "Power-on",
+    2: "External reset",
+    3: "Software reset",
+    4: "Panic/exception",
+    5: "Interrupt watchdog",
+    6: "Task watchdog",
+    7: "Other watchdog",
+    8: "Deep sleep wake",
+    9: "Brownout",
+    10: "SDIO",
+}
+_UNEXPECTED_RESET_REASONS = {4, 5, 6, 7, 9}
+
+
 def check_shelly_info(
-    params: TemperatureParams,
+    params: InfoParams,
     section_shelly_status: StatusSection | None,
     section_shelly_device_info: DeviceInfoSection | None,
 ) -> CheckResult:
@@ -203,6 +225,18 @@ def check_shelly_info(
     else:
         yield Result(state=State.OK, summary="Firmware up to date")
 
+    if (reset_reason := sys_status.get("reset_reason")) is not None:
+        reason_name = _RESET_REASON_NAMES.get(
+            reset_reason, f"Unrecognized ({reset_reason})"
+        )
+        if reset_reason in _UNEXPECTED_RESET_REASONS:
+            yield Result(
+                state=_SEVERITY_STATE[params["unexpected_reboot"]],
+                summary=f"Last reboot: {reason_name}",
+            )
+        else:
+            yield Result(state=State.OK, summary=f"Last reboot: {reason_name}")
+
     if (temperature := _device_temperature_c(section_shelly_status)) is not None:
         yield from check_levels(
             temperature,
@@ -210,6 +244,15 @@ def check_shelly_info(
             metric_name="temp",
             render_func=lambda v: f"{v:.1f} °C",
             levels_upper=params["temperature"],
+        )
+
+    if (rssi := section_shelly_status.get("wifi", {}).get("rssi")) is not None:
+        yield from check_levels(
+            rssi,
+            label="WiFi signal",
+            metric_name="shelly_wifi_rssi",
+            render_func=lambda v: f"{v:.0f} dBm",
+            levels_lower=params["wifi_signal"],
         )
 
     if section_shelly_device_info is not None:
@@ -229,11 +272,13 @@ check_plugin_shelly_info = CheckPlugin(
     discovery_function=discover_shelly_info,
     check_function=check_shelly_info,
     check_ruleset_name="shelly_info",
-    check_default_parameters=TemperatureParams(
+    check_default_parameters=InfoParams(
         temperature=("fixed", (70.0, 80.0)),
+        wifi_signal=("fixed", (-70.0, -80.0)),
         unset_password="ignore",
         restart_required="warn",
         firmware_update_available="warn",
+        unexpected_reboot="warn",
     ),
 )
 
@@ -244,6 +289,7 @@ class ConnectivityParams(TypedDict):
     bluetooth: Expectation
     mqtt: Expectation
     cloud: Expectation
+    websocket: Expectation
 
 
 def discover_shelly_connectivity(
@@ -276,6 +322,7 @@ def check_shelly_connectivity(
     bluetooth_enabled = section_shelly_ble_config["enable"]
     mqtt_connected = section_shelly_status["mqtt"]["connected"]
     cloud_connected = section_shelly_status["cloud"]["connected"]
+    websocket_connected = section_shelly_status["ws"]["connected"]
 
     yield _check_expectation("Bluetooth", bluetooth_enabled, params["bluetooth"])
     yield Metric("shelly_bluetooth_enabled", 1.0 if bluetooth_enabled else 0.0)
@@ -285,6 +332,9 @@ def check_shelly_connectivity(
 
     yield _check_expectation("Cloud", cloud_connected, params["cloud"])
     yield Metric("shelly_cloud_connected", 1.0 if cloud_connected else 0.0)
+
+    yield _check_expectation("Websocket", websocket_connected, params["websocket"])
+    yield Metric("shelly_websocket_connected", 1.0 if websocket_connected else 0.0)
 
 
 check_plugin_shelly_connectivity = CheckPlugin(
@@ -298,6 +348,7 @@ check_plugin_shelly_connectivity = CheckPlugin(
         bluetooth="ignore",
         mqtt="ignore",
         cloud="ignore",
+        websocket="ignore",
     ),
 )
 
@@ -353,4 +404,33 @@ check_plugin_shelly_switch = CheckPlugin(
         power=("fixed", (2000.0, 2500.0)),
         current=("fixed", (10.0, 13.0)),
     ),
+)
+
+
+def discover_shelly_input(section: StatusSection) -> DiscoveryResult:
+    for key in section:
+        if key.startswith("input:"):
+            yield Service(item=key.split(":", 1)[1])
+
+
+def check_shelly_input(item: str, section: StatusSection) -> CheckResult:
+    input_ = section.get(f"input:{item}")
+    if input_ is None:
+        return
+
+    state = input_.get("state")
+    if state is None:
+        yield Result(state=State.OK, summary="No state reported")
+        return
+
+    yield Result(state=State.OK, summary="On" if state else "Off")
+    yield Metric("shelly_input_state", 1.0 if state else 0.0)
+
+
+check_plugin_shelly_input = CheckPlugin(
+    name="shelly_input",
+    sections=["shelly_status"],
+    service_name="Shelly Input %s",
+    discovery_function=discover_shelly_input,
+    check_function=check_shelly_input,
 )

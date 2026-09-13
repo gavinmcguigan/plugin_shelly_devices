@@ -157,6 +157,10 @@ def _connectivity_parameter_form() -> Dictionary:
                 required=True,
                 parameter_form=_expectation_field(Title("Cloud")),
             ),
+            "websocket": DictElement(
+                required=True,
+                parameter_form=_expectation_field(Title("Websocket")),
+            ),
         }
     )
 
@@ -182,7 +186,7 @@ def _severity_field(title: Title, default: str) -> SingleChoice:
     )
 
 
-def _temperature_parameter_form() -> Dictionary:
+def _info_parameter_form() -> Dictionary:
     return Dictionary(
         elements={
             "temperature": DictElement[SimpleLevelsConfigModel[float]](
@@ -193,6 +197,21 @@ def _temperature_parameter_form() -> Dictionary:
                     form_spec_template=Float(),
                     prefill_levels_type=DefaultValue(LevelsType.FIXED),
                     prefill_fixed_levels=InputHint((70.0, 80.0)),
+                    migrate=migrate_to_float_simple_levels,
+                ),
+            ),
+            "wifi_signal": DictElement[SimpleLevelsConfigModel[float]](
+                required=True,
+                parameter_form=SimpleLevels(
+                    title=Title("Lower levels for WiFi signal strength"),
+                    help_text=Help(
+                        "In dBm. Less negative is stronger, so these are levels "
+                        "below which the signal is considered too weak."
+                    ),
+                    level_direction=LevelDirection.LOWER,
+                    form_spec_template=Float(),
+                    prefill_levels_type=DefaultValue(LevelsType.FIXED),
+                    prefill_fixed_levels=InputHint((-70.0, -80.0)),
                     migrate=migrate_to_float_simple_levels,
                 ),
             ),
@@ -214,6 +233,15 @@ def _temperature_parameter_form() -> Dictionary:
                     Title("If a firmware update is available"), "warn"
                 ),
             ),
+            "unexpected_reboot": DictElement(
+                required=True,
+                parameter_form=_severity_field(
+                    Title(
+                        "If the last reboot was unexpected (crash, watchdog, brownout)"
+                    ),
+                    "warn",
+                ),
+            ),
         }
     )
 
@@ -221,7 +249,7 @@ def _temperature_parameter_form() -> Dictionary:
 rule_spec_shelly_info = CheckParameters(
     name="shelly_info",
     topic=Topic.APPLICATIONS,
-    parameter_form=_temperature_parameter_form,
+    parameter_form=_info_parameter_form,
     title=Title("Shelly info settings"),
     condition=HostCondition(),
 )
