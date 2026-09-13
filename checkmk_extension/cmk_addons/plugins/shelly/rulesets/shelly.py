@@ -218,8 +218,8 @@ def _temperature_parameter_form() -> Dictionary:
     )
 
 
-rule_spec_shelly_temperature = CheckParameters(
-    name="shelly_temperature",
+rule_spec_shelly_info = CheckParameters(
+    name="shelly_info",
     topic=Topic.APPLICATIONS,
     parameter_form=_temperature_parameter_form,
     title=Title("Shelly info settings"),
