@@ -18,7 +18,6 @@
 # time, synchronously.
 
 import asyncio
-import base64
 import logging
 import sys
 from collections.abc import Sequence
@@ -50,11 +49,8 @@ class Device:
 
 class AsyncSessionManager:
     def __init__(self, username: str, password: str, timeout: float = 10) -> None:
-        headers = {}
-        if username:
-            auth_encoded = base64.b64encode(f"{username}:{password}".encode()).decode()
-            headers["Authorization"] = f"Basic {auth_encoded}"
-        self._client = httpx.AsyncClient(headers=headers, timeout=timeout)
+        auth = httpx.DigestAuth(username, password) if username else None
+        self._client = httpx.AsyncClient(auth=auth, timeout=timeout)
 
     async def get(self, url: str) -> Any:
         resp = await self._client.get(url)
