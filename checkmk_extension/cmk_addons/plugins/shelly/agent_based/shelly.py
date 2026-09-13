@@ -5,20 +5,24 @@
 # Connectivity, and per-switch-channel checks.
 
 import json
-from typing import Any, Literal, TypedDict
+from typing import Any, Literal, NotRequired, TypedDict
 
 from cmk.agent_based.v2 import (
     AgentSection,
+    Attributes,
     CheckPlugin,
     CheckResult,
     DiscoveryResult,
     HostLabel,
     HostLabelGenerator,
+    InventoryPlugin,
+    InventoryResult,
     Metric,
     Result,
     Service,
     State,
     StringTable,
+    TableRow,
     check_levels,
     get_value_store,
     render,
@@ -40,6 +44,7 @@ agent_section_shelly_status = AgentSection(
 
 class DeviceInfoSection(TypedDict):
     auth_en: bool
+    mac: NotRequired[str]
 
 
 def parse_shelly_device_info(string_table: StringTable) -> DeviceInfoSection:
@@ -293,6 +298,43 @@ check_plugin_shelly_info = CheckPlugin(
         firmware_update_available="warn",
         unexpected_reboot="warn",
     ),
+)
+
+
+def inventorize_shelly_wifi(
+    section_shelly_status: StatusSection | None,
+    section_shelly_device_info: DeviceInfoSection | None,
+) -> InventoryResult:
+    if section_shelly_status is None:
+        return
+    wifi = section_shelly_status.get("wifi", {})
+
+    if ip_address := wifi.get("sta_ip"):
+        yield TableRow(
+            path=["networking", "addresses"],
+            key_columns={"address": ip_address, "device": "wifi"},
+            inventory_columns={"type": "ipv4"},
+        )
+
+    wlan_attributes: dict[str, str] = {}
+    if ssid := wifi.get("ssid"):
+        wlan_attributes["ssid"] = ssid
+    if bssid := wifi.get("bssid"):
+        wlan_attributes["access_point_mac"] = bssid
+    if section_shelly_device_info is not None and (
+        mac := section_shelly_device_info.get("mac")
+    ):
+        wlan_attributes["mac_address"] = mac
+    if wlan_attributes:
+        yield Attributes(
+            path=["networking", "wlan"], inventory_attributes=wlan_attributes
+        )
+
+
+inventory_plugin_shelly_wifi = InventoryPlugin(
+    name="shelly_wifi",
+    sections=["shelly_status", "shelly_device_info"],
+    inventory_function=inventorize_shelly_wifi,
 )
 
 Expectation = Literal["enabled", "disabled", "ignore"]
