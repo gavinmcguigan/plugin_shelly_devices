@@ -79,6 +79,27 @@ metric_shelly_cloud_connected = Metric(
     color=Color.LIGHT_PURPLE,
 )
 
+metric_shelly_websocket_connected = Metric(
+    name="shelly_websocket_connected",
+    title=Title("Websocket connected"),
+    unit=Unit(DecimalNotation(""), StrictPrecision(0)),
+    color=Color.LIGHT_ORANGE,
+)
+
+metric_shelly_wifi_rssi = Metric(
+    name="shelly_wifi_rssi",
+    title=Title("WiFi signal"),
+    unit=Unit(DecimalNotation("dBm"), StrictPrecision(0)),
+    color=Color.DARK_BLUE,
+)
+
+metric_shelly_input_state = Metric(
+    name="shelly_input_state",
+    title=Title("Input state"),
+    unit=Unit(DecimalNotation(""), StrictPrecision(0)),
+    color=Color.DARK_GREEN,
+)
+
 perfometer_shelly_consecutive_failures = Perfometer(
     name="shelly_consecutive_failures",
     focus_range=FocusRange(Closed(0), Open(10)),
@@ -87,10 +108,11 @@ perfometer_shelly_consecutive_failures = Perfometer(
 
 perfometer_shelly_connectivity = Perfometer(
     name="shelly_connectivity",
-    focus_range=FocusRange(Closed(0), Closed(3)),
+    focus_range=FocusRange(Closed(0), Closed(4)),
     segments=[
         "shelly_bluetooth_enabled",
         "shelly_mqtt_connected",
         "shelly_cloud_connected",
+        "shelly_websocket_connected",
     ],
 )
