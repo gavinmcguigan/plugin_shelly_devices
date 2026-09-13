@@ -25,7 +25,6 @@ from dataclasses import dataclass
 from typing import Any
 
 import httpx
-
 from cmk.special_agents.v0_unstable.agent_common import (
     ConditionalPiggybackSection,
     SectionWriter,
@@ -45,6 +44,7 @@ class Device:
     host: str
     username: str
     password: str
+    timeout: float = 10.0
 
 
 class AsyncSessionManager:
@@ -67,20 +67,37 @@ def parse_arguments(argv: Sequence[str] | None) -> Args:
     parser.add_argument("--host", action="append", default=[], dest="hosts")
     parser.add_argument("--username", action="append", default=[], dest="usernames")
     parser.add_argument("--password", action="append", default=[], dest="passwords")
+    parser.add_argument(
+        "--timeout", action="append", default=[], dest="timeouts", type=float
+    )
     return parser.parse_args(argv)
 
 
 def devices_from_args(args: Args) -> list[Device]:
     return [
-        Device(alias=alias, host=host, username=username, password=password)
-        for alias, host, username, password in zip(
-            args.devices, args.hosts, args.usernames, args.passwords
+        Device(
+            alias=alias,
+            host=host,
+            username=username,
+            password=password,
+            timeout=timeout,
+        )
+        for alias, host, username, password, timeout in zip(
+            args.devices,
+            args.hosts,
+            args.usernames,
+            args.passwords,
+            args.timeouts,
         )
     ]
 
 
 async def fetch_device(device: Device) -> dict[str, Any] | None:
-    session = AsyncSessionManager(device.username, device.password)
+    session = AsyncSessionManager(
+        device.username,
+        device.password,
+        timeout=device.timeout,
+    )
     base_url = f"http://{device.host}"
     try:
         device_info = await session.get(f"{base_url}/rpc/Shelly.GetDeviceInfo")

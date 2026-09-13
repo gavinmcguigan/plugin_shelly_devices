@@ -6,9 +6,13 @@
 
 from collections.abc import Iterable, Sequence
 
+from cmk.server_side_calls.v1 import (
+    HostConfig,
+    Secret,
+    SpecialAgentCommand,
+    SpecialAgentConfig,
+)
 from pydantic import BaseModel
-
-from cmk.server_side_calls.v1 import HostConfig, Secret, SpecialAgentCommand, SpecialAgentConfig
 
 
 class Device(BaseModel, frozen=True):
@@ -16,6 +20,7 @@ class Device(BaseModel, frozen=True):
     host: str
     username: str = ""
     password: Secret | None = None
+    timeout: float = 10.0
 
 
 class Params(BaseModel, frozen=True):
@@ -37,6 +42,8 @@ def _commands_function(
             device.username,
             "--password",
             device.password if device.password is not None else "",
+            "--timeout",
+            str(device.timeout),
         ]
     yield SpecialAgentCommand(command_arguments=args)
 

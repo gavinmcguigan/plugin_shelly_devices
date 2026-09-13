@@ -61,7 +61,9 @@ def parse_shelly_reachable(string_table: StringTable) -> ReachableSection:
     return json.loads(string_table[0][0])
 
 
-def host_label_function_shelly_reachable(section: ReachableSection) -> HostLabelGenerator:
+def host_label_function_shelly_reachable(
+    section: ReachableSection,
+) -> HostLabelGenerator:
     yield HostLabel("shelly/alias", section["alias"])
     yield HostLabel("shelly/device", "yes")
 
@@ -81,7 +83,10 @@ class ReachabilityParams(TypedDict):
     failures_before_crit: int
 
 
-def check_shelly_reachable(params: ReachabilityParams, section: ReachableSection) -> CheckResult:
+def check_shelly_reachable(
+    params: ReachabilityParams,
+    section: ReachableSection,
+) -> CheckResult:
     value_store = get_value_store()
     consecutive_failures = value_store.get("consecutive_failures", 0)
 
@@ -197,7 +202,10 @@ def _check_expectation(label: str, actual: bool, expected: Expectation) -> Resul
     actual_str = "enabled" if actual else "disabled"
     if expected == "ignore" or expected == actual_str:
         return Result(state=State.OK, summary=f"{label}: {actual_str}")
-    return Result(state=State.WARN, summary=f"{label}: {actual_str} (expected {expected})")
+    return Result(
+        state=State.WARN,
+        summary=f"{label}: {actual_str} (expected {expected})",
+    )
 
 
 def check_shelly_connectivity(
@@ -229,7 +237,11 @@ check_plugin_shelly_connectivity = CheckPlugin(
     discovery_function=discover_shelly_connectivity,
     check_function=check_shelly_connectivity,
     check_ruleset_name="shelly_connectivity",
-    check_default_parameters=ConnectivityParams(bluetooth="ignore", mqtt="ignore", cloud="ignore"),
+    check_default_parameters=ConnectivityParams(
+        bluetooth="ignore",
+        mqtt="ignore",
+        cloud="ignore",
+    ),
 )
 
 
@@ -244,7 +256,11 @@ class SwitchParams(TypedDict):
     current: SimpleLevelsConfigModel[float]
 
 
-def check_shelly_switch(item: str, params: SwitchParams, section: StatusSection) -> CheckResult:
+def check_shelly_switch(
+    item: str,
+    params: SwitchParams,
+    section: StatusSection,
+) -> CheckResult:
     switch = section.get(f"switch:{item}")
     if switch is None:
         return

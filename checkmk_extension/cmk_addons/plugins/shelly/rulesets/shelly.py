@@ -25,7 +25,12 @@ from cmk.rulesets.v1.form_specs import (
     migrate_to_password,
     validators,
 )
-from cmk.rulesets.v1.rule_specs import CheckParameters, HostCondition, SpecialAgent, Topic
+from cmk.rulesets.v1.rule_specs import (
+    CheckParameters,
+    HostCondition,
+    SpecialAgent,
+    Topic,
+)
 
 
 def _device_form() -> Dictionary:
@@ -57,6 +62,17 @@ def _device_form() -> Dictionary:
                 parameter_form=Password(
                     title=Title("Password"),
                     migrate=migrate_to_password,
+                ),
+            ),
+            "timeout": DictElement(
+                required=True,
+                parameter_form=Float(
+                    title=Title("Timeout"),
+                    help_text=Help(
+                        "How long to wait for this device to respond, in seconds."
+                    ),
+                    prefill=DefaultValue(10.0),
+                    custom_validate=(validators.NumberInRange(min_value=0.1),),
                 ),
             ),
         },
