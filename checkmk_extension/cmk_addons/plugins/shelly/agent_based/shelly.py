@@ -453,7 +453,7 @@ def check_shelly_switch(
 check_plugin_shelly_switch = CheckPlugin(
     name="shelly_switch",
     sections=["shelly_status"],
-    service_name="Shelly Switch %s",
+    service_name="Shelly Relay %s",
     discovery_function=discover_shelly_switch,
     check_function=check_shelly_switch,
     check_ruleset_name="shelly_switch",
