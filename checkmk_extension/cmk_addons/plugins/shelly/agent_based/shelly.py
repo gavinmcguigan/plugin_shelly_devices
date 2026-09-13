@@ -227,6 +227,9 @@ def check_shelly_info(
     yield Result(state=State.OK, summary=f"Up {render.timespan(uptime)}")
     yield Metric("uptime", uptime)
 
+    if ip_address := section_shelly_status.get("wifi", {}).get("sta_ip"):
+        yield Result(state=State.OK, summary=f"IP: {ip_address}")
+
     if sys_status["restart_required"]:
         yield Result(
             state=_SEVERITY_STATE[params["restart_required"]],
