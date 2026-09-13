@@ -438,6 +438,15 @@ def discover_shelly_switch(
 class SwitchParams(TypedDict):
     power: SimpleLevelsConfigModel[float]
     current: SimpleLevelsConfigModel[float]
+    missing_auto_off_timer: Severity
+
+
+def _switch_timer_remaining(switch: dict[str, Any], now: int) -> float | None:
+    timer_started_at = switch.get("timer_started_at")
+    if not timer_started_at:
+        return None
+    remaining = (timer_started_at + switch.get("timer_duration", 0)) - now
+    return remaining if remaining > 0 else None
 
 
 def check_shelly_switch(
@@ -460,6 +469,26 @@ def check_shelly_switch(
     yield Result(
         state=State.OK, summary=f"{label}: {'On' if switch['output'] else 'Off'}"
     )
+
+    timer_remaining = _switch_timer_remaining(
+        switch, section_shelly_status["sys"]["unixtime"]
+    )
+    if timer_remaining is not None:
+        yield Result(
+            state=State.OK, summary=f"Auto-off in {render.timespan(timer_remaining)}"
+        )
+
+    if section_shelly_switch_config is not None:
+        config = section_shelly_switch_config.get(f"switch:{item}", {})
+        if config.get("auto_off"):
+            delay = render.timespan(config.get("auto_off_delay", 0))
+            yield Result(state=State.OK, summary=f"Auto-off timer configured ({delay})")
+        else:
+            yield Result(
+                state=_SEVERITY_STATE[params["missing_auto_off_timer"]],
+                summary="Auto-off timer not configured",
+            )
+
     yield Metric("shelly_voltage", switch["voltage"])
     yield Metric("shelly_energy_total", switch["aenergy"]["total"])
 
@@ -489,6 +518,7 @@ check_plugin_shelly_switch = CheckPlugin(
     check_default_parameters=SwitchParams(
         power=("fixed", (2000.0, 2500.0)),
         current=("fixed", (10.0, 13.0)),
+        missing_auto_off_timer="ignore",
     ),
 )
 

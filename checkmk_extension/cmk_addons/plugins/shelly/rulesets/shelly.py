@@ -280,6 +280,13 @@ def _switch_parameter_form() -> Dictionary:
                     migrate=migrate_to_float_simple_levels,
                 ),
             ),
+            "missing_auto_off_timer": DictElement(
+                required=True,
+                parameter_form=_severity_field(
+                    Title("If no auto-off timer is configured on the relay"),
+                    "ignore",
+                ),
+            ),
         }
     )
 
