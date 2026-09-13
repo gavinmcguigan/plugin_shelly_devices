@@ -149,9 +149,9 @@ def discover_shelly_info(
     yield Service()
 
 
-UnsetPasswordSeverity = Literal["ignore", "warn", "crit"]
+Severity = Literal["ignore", "warn", "crit"]
 
-_UNSET_PASSWORD_STATE: dict[UnsetPasswordSeverity, State] = {
+_SEVERITY_STATE: dict[Severity, State] = {
     "ignore": State.OK,
     "warn": State.WARN,
     "crit": State.CRIT,
@@ -160,7 +160,9 @@ _UNSET_PASSWORD_STATE: dict[UnsetPasswordSeverity, State] = {
 
 class TemperatureParams(TypedDict):
     temperature: SimpleLevelsConfigModel[float]
-    unset_password: UnsetPasswordSeverity
+    unset_password: Severity
+    restart_required: Severity
+    firmware_update_available: Severity
 
 
 def _device_temperature_c(section: StatusSection) -> float | None:
@@ -186,12 +188,18 @@ def check_shelly_info(
     yield Metric("uptime", uptime)
 
     if sys_status["restart_required"]:
-        yield Result(state=State.WARN, summary="Restart required")
+        yield Result(
+            state=_SEVERITY_STATE[params["restart_required"]],
+            summary="Restart required",
+        )
     else:
         yield Result(state=State.OK, summary="No restart required")
 
     if sys_status["available_updates"]:
-        yield Result(state=State.WARN, summary="Firmware update available")
+        yield Result(
+            state=_SEVERITY_STATE[params["firmware_update_available"]],
+            summary="Firmware update available",
+        )
     else:
         yield Result(state=State.OK, summary="Firmware up to date")
 
@@ -209,7 +217,7 @@ def check_shelly_info(
             yield Result(state=State.OK, summary="Password protected")
         else:
             yield Result(
-                state=_UNSET_PASSWORD_STATE[params["unset_password"]],
+                state=_SEVERITY_STATE[params["unset_password"]],
                 summary="Password not set",
             )
 
@@ -224,6 +232,8 @@ check_plugin_shelly_info = CheckPlugin(
     check_default_parameters=TemperatureParams(
         temperature=("fixed", (70.0, 80.0)),
         unset_password="ignore",
+        restart_required="warn",
+        firmware_update_available="warn",
     ),
 )
 

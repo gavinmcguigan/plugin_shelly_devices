@@ -170,6 +170,18 @@ rule_spec_shelly_connectivity = CheckParameters(
 )
 
 
+def _severity_field(title: Title, default: str) -> SingleChoice:
+    return SingleChoice(
+        title=title,
+        elements=[
+            SingleChoiceElement("ignore", Title("Ignore")),
+            SingleChoiceElement("warn", Title("WARN")),
+            SingleChoiceElement("crit", Title("CRIT")),
+        ],
+        prefill=DefaultValue(default),
+    )
+
+
 def _temperature_parameter_form() -> Dictionary:
     return Dictionary(
         elements={
@@ -186,14 +198,20 @@ def _temperature_parameter_form() -> Dictionary:
             ),
             "unset_password": DictElement(
                 required=True,
-                parameter_form=SingleChoice(
-                    title=Title("If the device has no password set"),
-                    elements=[
-                        SingleChoiceElement("ignore", Title("Ignore")),
-                        SingleChoiceElement("warn", Title("WARN")),
-                        SingleChoiceElement("crit", Title("CRIT")),
-                    ],
-                    prefill=DefaultValue("ignore"),
+                parameter_form=_severity_field(
+                    Title("If the device has no password set"), "ignore"
+                ),
+            ),
+            "restart_required": DictElement(
+                required=True,
+                parameter_form=_severity_field(
+                    Title("If the device requires a restart"), "warn"
+                ),
+            ),
+            "firmware_update_available": DictElement(
+                required=True,
+                parameter_form=_severity_field(
+                    Title("If a firmware update is available"), "warn"
                 ),
             ),
         }
