@@ -66,6 +66,19 @@ agent_section_shelly_ble_config = AgentSection(
 )
 
 
+InputConfigSection = dict[str, Any]
+
+
+def parse_shelly_input_config(string_table: StringTable) -> InputConfigSection:
+    return json.loads(string_table[0][0])
+
+
+agent_section_shelly_input_config = AgentSection(
+    name="shelly_input_config",
+    parse_function=parse_shelly_input_config,
+)
+
+
 class ReachableSection(TypedDict):
     alias: str
     reachable: bool
@@ -407,29 +420,45 @@ check_plugin_shelly_switch = CheckPlugin(
 )
 
 
-def discover_shelly_input(section: StatusSection) -> DiscoveryResult:
-    for key in section:
+def discover_shelly_input(
+    section_shelly_status: StatusSection | None,
+    section_shelly_input_config: InputConfigSection | None,
+) -> DiscoveryResult:
+    if section_shelly_status is None:
+        return
+    for key in section_shelly_status:
         if key.startswith("input:"):
             yield Service(item=key.split(":", 1)[1])
 
 
-def check_shelly_input(item: str, section: StatusSection) -> CheckResult:
-    input_ = section.get(f"input:{item}")
+def check_shelly_input(
+    item: str,
+    section_shelly_status: StatusSection | None,
+    section_shelly_input_config: InputConfigSection | None,
+) -> CheckResult:
+    if section_shelly_status is None:
+        return
+    input_ = section_shelly_status.get(f"input:{item}")
     if input_ is None:
         return
 
+    input_type = None
+    if section_shelly_input_config is not None:
+        input_type = section_shelly_input_config.get(f"input:{item}", {}).get("type")
+    label = f"Input ({input_type.capitalize()})" if input_type else "Input"
+
     state = input_.get("state")
     if state is None:
-        yield Result(state=State.OK, summary="No state reported")
+        yield Result(state=State.OK, summary=f"{label}: No state reported")
         return
 
-    yield Result(state=State.OK, summary="On" if state else "Off")
+    yield Result(state=State.OK, summary=f"{label}: {'On' if state else 'Off'}")
     yield Metric("shelly_input_state", 1.0 if state else 0.0)
 
 
 check_plugin_shelly_input = CheckPlugin(
     name="shelly_input",
-    sections=["shelly_status"],
+    sections=["shelly_status", "shelly_input_config"],
     service_name="Shelly Input %s",
     discovery_function=discover_shelly_input,
     check_function=check_shelly_input,

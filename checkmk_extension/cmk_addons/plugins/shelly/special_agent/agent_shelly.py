@@ -103,12 +103,28 @@ async def fetch_device(device: Device) -> dict[str, Any] | None:
         device_info = await session.get(f"{base_url}/rpc/Shelly.GetDeviceInfo")
         status = await session.get(f"{base_url}/rpc/Shelly.GetStatus")
         ble_config = await session.get(f"{base_url}/rpc/Ble.GetConfig")
+
+        # Only the per-input config, not the whole-device Shelly.GetConfig --
+        # that includes WiFi/MQTT/cloud credentials in plaintext, which we
+        # don't want piggybacked into Checkmk's monitoring data.
+        input_config = {}
+        for key in status:
+            if key.startswith("input:"):
+                input_id = key.split(":", 1)[1]
+                input_config[key] = await session.get(
+                    f"{base_url}/rpc/Input.GetConfig?id={input_id}"
+                )
     except httpx.HTTPError as e:
         LOGGING.error("Failed to query %s (%s): %s", device.alias, device.host, e)
         return None
     finally:
         await session.aclose()
-    return {"device_info": device_info, "status": status, "ble_config": ble_config}
+    return {
+        "device_info": device_info,
+        "status": status,
+        "ble_config": ble_config,
+        "input_config": input_config,
+    }
 
 
 async def fetch_all(devices: list[Device]) -> list[dict[str, Any] | None]:
@@ -127,6 +143,8 @@ def write_device(device: Device, data: dict[str, Any] | None) -> None:
             w.append_json(data["status"])
         with SectionWriter("shelly_ble_config") as w:
             w.append_json(data["ble_config"])
+        with SectionWriter("shelly_input_config") as w:
+            w.append_json(data["input_config"])
         with SectionWriter("shelly_reachable") as w:
             w.append_json({"alias": device.alias, "reachable": True})
 
