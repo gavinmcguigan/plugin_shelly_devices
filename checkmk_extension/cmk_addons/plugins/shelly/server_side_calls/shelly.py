@@ -41,7 +41,7 @@ def _commands_function(
             "--username",
             device.username,
             "--password",
-            device.password if device.password is not None else "",
+            device.password.unsafe() if device.password is not None else "",
             "--timeout",
             str(device.timeout),
         ]
