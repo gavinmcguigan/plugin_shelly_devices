@@ -184,6 +184,18 @@ def _temperature_parameter_form() -> Dictionary:
                     migrate=migrate_to_float_simple_levels,
                 ),
             ),
+            "unset_password": DictElement(
+                required=True,
+                parameter_form=SingleChoice(
+                    title=Title("If the device has no password set"),
+                    elements=[
+                        SingleChoiceElement("ignore", Title("Ignore")),
+                        SingleChoiceElement("warn", Title("WARN")),
+                        SingleChoiceElement("crit", Title("CRIT")),
+                    ],
+                    prefill=DefaultValue("ignore"),
+                ),
+            ),
         }
     )
 
@@ -192,7 +204,7 @@ rule_spec_shelly_temperature = CheckParameters(
     name="shelly_temperature",
     topic=Topic.APPLICATIONS,
     parameter_form=_temperature_parameter_form,
-    title=Title("Shelly temperature levels"),
+    title=Title("Shelly info settings"),
     condition=HostCondition(),
 )
 

@@ -38,6 +38,20 @@ agent_section_shelly_status = AgentSection(
 )
 
 
+class DeviceInfoSection(TypedDict):
+    auth_en: bool
+
+
+def parse_shelly_device_info(string_table: StringTable) -> DeviceInfoSection:
+    return json.loads(string_table[0][0])
+
+
+agent_section_shelly_device_info = AgentSection(
+    name="shelly_device_info",
+    parse_function=parse_shelly_device_info,
+)
+
+
 class BleConfigSection(TypedDict):
     enable: bool
 
@@ -126,12 +140,27 @@ check_plugin_shelly_reachable = CheckPlugin(
 )
 
 
-def discover_shelly_info(section: StatusSection) -> DiscoveryResult:
+def discover_shelly_info(
+    section_shelly_status: StatusSection | None,
+    section_shelly_device_info: DeviceInfoSection | None,
+) -> DiscoveryResult:
+    if section_shelly_status is None:
+        return
     yield Service()
+
+
+UnsetPasswordSeverity = Literal["ignore", "warn", "crit"]
+
+_UNSET_PASSWORD_STATE: dict[UnsetPasswordSeverity, State] = {
+    "ignore": State.OK,
+    "warn": State.WARN,
+    "crit": State.CRIT,
+}
 
 
 class TemperatureParams(TypedDict):
     temperature: SimpleLevelsConfigModel[float]
+    unset_password: UnsetPasswordSeverity
 
 
 def _device_temperature_c(section: StatusSection) -> float | None:
@@ -143,8 +172,14 @@ def _device_temperature_c(section: StatusSection) -> float | None:
     return None
 
 
-def check_shelly_info(params: TemperatureParams, section: StatusSection) -> CheckResult:
-    sys_status = section["sys"]
+def check_shelly_info(
+    params: TemperatureParams,
+    section_shelly_status: StatusSection | None,
+    section_shelly_device_info: DeviceInfoSection | None,
+) -> CheckResult:
+    if section_shelly_status is None:
+        return
+    sys_status = section_shelly_status["sys"]
 
     uptime = sys_status["uptime"]
     yield Result(state=State.OK, summary=f"Up {render.timespan(uptime)}")
@@ -160,7 +195,7 @@ def check_shelly_info(params: TemperatureParams, section: StatusSection) -> Chec
     else:
         yield Result(state=State.OK, summary="Firmware up to date")
 
-    if (temperature := _device_temperature_c(section)) is not None:
+    if (temperature := _device_temperature_c(section_shelly_status)) is not None:
         yield from check_levels(
             temperature,
             label="Temperature",
@@ -169,15 +204,27 @@ def check_shelly_info(params: TemperatureParams, section: StatusSection) -> Chec
             levels_upper=params["temperature"],
         )
 
+    if section_shelly_device_info is not None:
+        if section_shelly_device_info["auth_en"]:
+            yield Result(state=State.OK, summary="Password protected")
+        else:
+            yield Result(
+                state=_UNSET_PASSWORD_STATE[params["unset_password"]],
+                summary="Password not set",
+            )
+
 
 check_plugin_shelly_info = CheckPlugin(
     name="shelly_info",
-    sections=["shelly_status"],
+    sections=["shelly_status", "shelly_device_info"],
     service_name="Shelly Info",
     discovery_function=discover_shelly_info,
     check_function=check_shelly_info,
     check_ruleset_name="shelly_temperature",
-    check_default_parameters=TemperatureParams(temperature=("fixed", (70.0, 80.0))),
+    check_default_parameters=TemperatureParams(
+        temperature=("fixed", (70.0, 80.0)),
+        unset_password="ignore",
+    ),
 )
 
 Expectation = Literal["enabled", "disabled", "ignore"]
