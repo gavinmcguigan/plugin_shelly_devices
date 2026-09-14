@@ -36,6 +36,7 @@ def host_label_function_shelly_reachable(
 ) -> HostLabelGenerator:
     yield HostLabel("shelly/alias", section["alias"])
     yield HostLabel("shelly/device", "yes")
+    yield HostLabel("shelly/generation", "gen2")
 
 
 Severity = Literal["ignore", "warn", "crit"]
