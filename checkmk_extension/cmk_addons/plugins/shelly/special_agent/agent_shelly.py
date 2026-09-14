@@ -41,6 +41,7 @@ LOGGING = logging.getLogger("agent_shelly")
 @dataclass(frozen=True)
 class Device:
     alias: str
+    generation: str
     host: str
     username: str
     password: str
@@ -64,6 +65,7 @@ class AsyncSessionManager:
 def parse_arguments(argv: Sequence[str] | None) -> Args:
     parser = create_default_argument_parser(description=__doc__)
     parser.add_argument("--device", action="append", default=[], dest="devices")
+    parser.add_argument("--generation", action="append", default=[], dest="generations")
     parser.add_argument("--host", action="append", default=[], dest="hosts")
     parser.add_argument("--username", action="append", default=[], dest="usernames")
     parser.add_argument("--password", action="append", default=[], dest="passwords")
@@ -77,13 +79,15 @@ def devices_from_args(args: Args) -> list[Device]:
     return [
         Device(
             alias=alias,
+            generation=generation,
             host=host,
             username=username,
             password=password,
             timeout=timeout,
         )
-        for alias, host, username, password, timeout in zip(
+        for alias, generation, host, username, password, timeout in zip(
             args.devices,
+            args.generations,
             args.hosts,
             args.usernames,
             args.passwords,

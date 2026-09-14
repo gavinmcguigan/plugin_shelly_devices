@@ -1,10 +1,11 @@
 # Copied into the OMD site at:
 #   ~/local/lib/python3/cmk_addons/plugins/shelly/server_side_calls/shelly.py
 #
-# Turns the shelly ruleset's device list into repeated --device/--username/
-# --password argv groups for libexec/agent_shelly.
+# Turns the shelly ruleset's device list into repeated --device/--generation/
+# --username/--password argv groups for libexec/agent_shelly.
 
 from collections.abc import Iterable, Sequence
+from typing import Literal
 
 from cmk.server_side_calls.v1 import (
     HostConfig,
@@ -17,6 +18,7 @@ from pydantic import BaseModel
 
 class Device(BaseModel, frozen=True):
     alias: str
+    generation: Literal["gen1", "gen2"]
     host: str
     username: str = ""
     password: Secret | None = None
@@ -36,6 +38,8 @@ def _commands_function(
         args += [
             "--device",
             device.alias,
+            "--generation",
+            device.generation,
             "--host",
             device.host,
             "--username",
