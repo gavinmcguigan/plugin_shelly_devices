@@ -169,3 +169,7 @@ tests/
 pytest.ini
 requirements-dev.local.txt
 docs/testing-local.md
+
+# Local-only dev tooling that needs a check_mk repo checkout -- same
+# reasoning as the tests above.
+packaging/run-agent.sh
