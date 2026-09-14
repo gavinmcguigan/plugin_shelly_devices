@@ -1,8 +1,6 @@
 # Copied into the OMD site at:
 #   ~/local/lib/python3/cmk_addons/plugins/shelly/agent_based/gen2/connectivity.py
 
-from typing import Literal, TypedDict
-
 from cmk.agent_based.v2 import (
     CheckPlugin,
     CheckResult,
@@ -12,16 +10,12 @@ from cmk.agent_based.v2 import (
     Service,
     State,
 )
+from cmk_addons.plugins.shelly.agent_based.gen2.defaults import (
+    GEN2_SETTINGS_DEFAULT_PARAMETERS,
+    Expectation,
+    Gen2SettingsParams,
+)
 from cmk_addons.plugins.shelly.lib import BleConfigSection, StatusSection
-
-Expectation = Literal["enabled", "disabled", "ignore"]
-
-
-class ConnectivityParams(TypedDict):
-    bluetooth: Expectation
-    mqtt: Expectation
-    cloud: Expectation
-    websocket: Expectation
 
 
 def discover_shelly_connectivity(
@@ -44,28 +38,33 @@ def _check_expectation(label: str, actual: bool, expected: Expectation) -> Resul
 
 
 def check_shelly_connectivity(
-    params: ConnectivityParams,
+    params: Gen2SettingsParams,
     section_shelly_status: StatusSection | None,
     section_shelly_ble_config: BleConfigSection | None,
 ) -> CheckResult:
     if section_shelly_status is None or section_shelly_ble_config is None:
         return
+    connectivity_params = params["connectivity"]
 
     bluetooth_enabled = section_shelly_ble_config["enable"]
     mqtt_connected = section_shelly_status["mqtt"]["connected"]
     cloud_connected = section_shelly_status["cloud"]["connected"]
     websocket_connected = section_shelly_status["ws"]["connected"]
 
-    yield _check_expectation("Bluetooth", bluetooth_enabled, params["bluetooth"])
+    yield _check_expectation(
+        "Bluetooth", bluetooth_enabled, connectivity_params["bluetooth"]
+    )
     yield Metric("shelly_bluetooth_enabled", 1.0 if bluetooth_enabled else 0.0)
 
-    yield _check_expectation("MQTT", mqtt_connected, params["mqtt"])
+    yield _check_expectation("MQTT", mqtt_connected, connectivity_params["mqtt"])
     yield Metric("shelly_mqtt_connected", 1.0 if mqtt_connected else 0.0)
 
-    yield _check_expectation("Cloud", cloud_connected, params["cloud"])
+    yield _check_expectation("Cloud", cloud_connected, connectivity_params["cloud"])
     yield Metric("shelly_cloud_connected", 1.0 if cloud_connected else 0.0)
 
-    yield _check_expectation("Websocket", websocket_connected, params["websocket"])
+    yield _check_expectation(
+        "Websocket", websocket_connected, connectivity_params["websocket"]
+    )
     yield Metric("shelly_websocket_connected", 1.0 if websocket_connected else 0.0)
 
 
@@ -75,11 +74,6 @@ check_plugin_shelly_connectivity = CheckPlugin(
     service_name="Shelly Connectivity",
     discovery_function=discover_shelly_connectivity,
     check_function=check_shelly_connectivity,
-    check_ruleset_name="shelly_connectivity",
-    check_default_parameters=ConnectivityParams(
-        bluetooth="ignore",
-        mqtt="ignore",
-        cloud="ignore",
-        websocket="ignore",
-    ),
+    check_ruleset_name="shelly_gen2_settings",
+    check_default_parameters=GEN2_SETTINGS_DEFAULT_PARAMETERS,
 )

@@ -1,7 +1,7 @@
 # Copied into the OMD site at:
 #   ~/local/lib/python3/cmk_addons/plugins/shelly/agent_based/gen2/switch.py
 
-from typing import Any, TypedDict
+from typing import Any
 
 from cmk.agent_based.v2 import (
     CheckPlugin,
@@ -14,10 +14,12 @@ from cmk.agent_based.v2 import (
     check_levels,
     render,
 )
-from cmk.rulesets.v1.form_specs import SimpleLevelsConfigModel
+from cmk_addons.plugins.shelly.agent_based.gen2.defaults import (
+    GEN2_SETTINGS_DEFAULT_PARAMETERS,
+    Gen2SettingsParams,
+)
 from cmk_addons.plugins.shelly.lib import (
     _SEVERITY_STATE,
-    Severity,
     StatusSection,
     SwitchConfigSection,
 )
@@ -34,12 +36,6 @@ def discover_shelly_switch(
             yield Service(item=key.split(":", 1)[1])
 
 
-class SwitchParams(TypedDict):
-    power: SimpleLevelsConfigModel[float]
-    current: SimpleLevelsConfigModel[float]
-    missing_auto_off_timer: Severity
-
-
 def _switch_timer_remaining(switch: dict[str, Any], now: int) -> float | None:
     timer_started_at = switch.get("timer_started_at")
     if not timer_started_at:
@@ -50,12 +46,13 @@ def _switch_timer_remaining(switch: dict[str, Any], now: int) -> float | None:
 
 def check_shelly_switch(
     item: str,
-    params: SwitchParams,
+    params: Gen2SettingsParams,
     section_shelly_status: StatusSection | None,
     section_shelly_switch_config: SwitchConfigSection | None,
 ) -> CheckResult:
     if section_shelly_status is None:
         return
+    switch_params = params["switch"]
     switch = section_shelly_status.get(f"switch:{item}")
     if switch is None:
         return
@@ -84,7 +81,7 @@ def check_shelly_switch(
             yield Result(state=State.OK, summary=f"Auto-off timer configured ({delay})")
         else:
             yield Result(
-                state=_SEVERITY_STATE[params["missing_auto_off_timer"]],
+                state=_SEVERITY_STATE[switch_params["missing_auto_off_timer"]],
                 summary="Auto-off timer not configured",
             )
 
@@ -96,14 +93,14 @@ def check_shelly_switch(
         label="Power",
         metric_name="shelly_power",
         render_func=lambda v: f"{v:.1f} W",
-        levels_upper=params["power"],
+        levels_upper=switch_params["power"],
     )
     yield from check_levels(
         switch["current"],
         label="Current",
         metric_name="shelly_current",
         render_func=lambda v: f"{v:.2f} A",
-        levels_upper=params["current"],
+        levels_upper=switch_params["current"],
     )
 
 
@@ -113,10 +110,6 @@ check_plugin_shelly_switch = CheckPlugin(
     service_name="Shelly Relay %s",
     discovery_function=discover_shelly_switch,
     check_function=check_shelly_switch,
-    check_ruleset_name="shelly_switch",
-    check_default_parameters=SwitchParams(
-        power=("fixed", (2000.0, 2500.0)),
-        current=("fixed", (10.0, 13.0)),
-        missing_auto_off_timer="ignore",
-    ),
+    check_ruleset_name="shelly_gen2_settings",
+    check_default_parameters=GEN2_SETTINGS_DEFAULT_PARAMETERS,
 )

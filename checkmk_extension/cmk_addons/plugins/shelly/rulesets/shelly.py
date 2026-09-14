@@ -121,15 +121,6 @@ def _reachability_parameter_form() -> Dictionary:
     )
 
 
-rule_spec_shelly_reachability = CheckParameters(
-    name="shelly_reachability",
-    topic=Topic.APPLICATIONS,
-    parameter_form=_reachability_parameter_form,
-    title=Title("Shelly reachability thresholds"),
-    condition=HostCondition(),
-)
-
-
 def _expectation_field(title: Title) -> SingleChoice:
     return SingleChoice(
         title=title,
@@ -163,15 +154,6 @@ def _connectivity_parameter_form() -> Dictionary:
             ),
         }
     )
-
-
-rule_spec_shelly_connectivity = CheckParameters(
-    name="shelly_connectivity",
-    topic=Topic.APPLICATIONS,
-    parameter_form=_connectivity_parameter_form,
-    title=Title("Shelly connectivity expectations"),
-    condition=HostCondition(),
-)
 
 
 def _severity_field(title: Title, default: str) -> SingleChoice:
@@ -246,15 +228,6 @@ def _info_parameter_form() -> Dictionary:
     )
 
 
-rule_spec_shelly_info = CheckParameters(
-    name="shelly_info",
-    topic=Topic.APPLICATIONS,
-    parameter_form=_info_parameter_form,
-    title=Title("Shelly info settings"),
-    condition=HostCondition(),
-)
-
-
 def _switch_parameter_form() -> Dictionary:
     return Dictionary(
         elements={
@@ -291,10 +264,33 @@ def _switch_parameter_form() -> Dictionary:
     )
 
 
-rule_spec_shelly_switch = CheckParameters(
-    name="shelly_switch",
+def _gen2_settings_form() -> Dictionary:
+    return Dictionary(
+        elements={
+            "reachability": DictElement(
+                required=True,
+                parameter_form=_reachability_parameter_form(),
+            ),
+            "connectivity": DictElement(
+                required=True,
+                parameter_form=_connectivity_parameter_form(),
+            ),
+            "info": DictElement(
+                required=True,
+                parameter_form=_info_parameter_form(),
+            ),
+            "switch": DictElement(
+                required=True,
+                parameter_form=_switch_parameter_form(),
+            ),
+        }
+    )
+
+
+rule_spec_shelly_gen2_settings = CheckParameters(
+    name="shelly_gen2_settings",
     topic=Topic.APPLICATIONS,
-    parameter_form=_switch_parameter_form,
-    title=Title("Shelly switch power/current levels"),
+    parameter_form=_gen2_settings_form,
+    title=Title("Shelly Gen2 settings"),
     condition=HostCondition(),
 )

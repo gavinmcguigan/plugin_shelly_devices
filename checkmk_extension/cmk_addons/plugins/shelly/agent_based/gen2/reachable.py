@@ -1,8 +1,6 @@
 # Copied into the OMD site at:
 #   ~/local/lib/python3/cmk_addons/plugins/shelly/agent_based/gen2/reachable.py
 
-from typing import TypedDict
-
 from cmk.agent_based.v2 import (
     CheckPlugin,
     CheckResult,
@@ -13,6 +11,10 @@ from cmk.agent_based.v2 import (
     State,
     get_value_store,
 )
+from cmk_addons.plugins.shelly.agent_based.gen2.defaults import (
+    GEN2_SETTINGS_DEFAULT_PARAMETERS,
+    Gen2SettingsParams,
+)
 from cmk_addons.plugins.shelly.lib import ReachableSection
 
 
@@ -20,14 +22,11 @@ def discover_shelly_reachable(section: ReachableSection) -> DiscoveryResult:
     yield Service()
 
 
-class ReachabilityParams(TypedDict):
-    failures_before_crit: int
-
-
 def check_shelly_reachable(
-    params: ReachabilityParams,
+    params: Gen2SettingsParams,
     section: ReachableSection,
 ) -> CheckResult:
+    reachability_params = params["reachability"]
     value_store = get_value_store()
     consecutive_failures = value_store.get("consecutive_failures", 0)
 
@@ -41,7 +40,7 @@ def check_shelly_reachable(
     value_store["consecutive_failures"] = consecutive_failures
     yield Metric("shelly_consecutive_failures", consecutive_failures)
 
-    threshold = params["failures_before_crit"]
+    threshold = reachability_params["failures_before_crit"]
     if consecutive_failures >= threshold:
         yield Result(
             state=State.CRIT,
@@ -62,6 +61,6 @@ check_plugin_shelly_reachable = CheckPlugin(
     service_name="Shelly Reachability",
     discovery_function=discover_shelly_reachable,
     check_function=check_shelly_reachable,
-    check_ruleset_name="shelly_reachability",
-    check_default_parameters=ReachabilityParams(failures_before_crit=3),
+    check_ruleset_name="shelly_gen2_settings",
+    check_default_parameters=GEN2_SETTINGS_DEFAULT_PARAMETERS,
 )
