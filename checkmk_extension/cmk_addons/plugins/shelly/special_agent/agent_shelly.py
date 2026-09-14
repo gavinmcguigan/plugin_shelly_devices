@@ -30,7 +30,7 @@ from cmk.special_agents.v0_unstable.argument_parsing import (
     Args,
     create_default_argument_parser,
 )
-from cmk_addons.plugins.shelly.special_agent import gen2
+from cmk_addons.plugins.shelly.special_agent import gen1, gen2
 from cmk_addons.plugins.shelly.special_agent.devices import Device
 
 
@@ -68,12 +68,16 @@ def devices_from_args(args: Args) -> list[Device]:
     ]
 
 
+def _generation_module(generation: str) -> Any:
+    if generation == "gen1":
+        return gen1
+    if generation == "gen2":
+        return gen2
+    raise ValueError(f"Unknown Shelly device generation: {generation!r}")
+
+
 async def fetch_device(device: Device) -> dict[str, Any] | None:
-    if device.generation == "gen2":
-        return await gen2.fetch_device(device)
-    raise NotImplementedError(
-        f"Gen1 devices are not yet supported (device: {device.alias!r})"
-    )
+    return await _generation_module(device.generation).fetch_device(device)
 
 
 async def fetch_all(devices: list[Device]) -> list[dict[str, Any] | None]:
@@ -81,12 +85,7 @@ async def fetch_all(devices: list[Device]) -> list[dict[str, Any] | None]:
 
 
 def write_device(device: Device, data: dict[str, Any] | None) -> None:
-    if device.generation == "gen2":
-        gen2.write_device(device, data)
-        return
-    raise NotImplementedError(
-        f"Gen1 devices are not yet supported (device: {device.alias!r})"
-    )
+    _generation_module(device.generation).write_device(device, data)
 
 
 def agent_shelly_main(args: Args) -> int:
