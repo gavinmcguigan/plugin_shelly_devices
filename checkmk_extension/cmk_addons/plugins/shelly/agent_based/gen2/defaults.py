@@ -10,7 +10,7 @@
 from typing import Literal, TypedDict
 
 from cmk.rulesets.v1.form_specs import SimpleLevelsConfigModel
-from cmk_addons.plugins.shelly.lib import Severity
+from cmk_addons.plugins.shelly.gen2_lib import Severity
 
 Expectation = Literal["enabled", "disabled", "ignore"]
 

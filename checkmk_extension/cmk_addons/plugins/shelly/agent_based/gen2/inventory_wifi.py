@@ -2,7 +2,7 @@
 #   ~/local/lib/python3/cmk_addons/plugins/shelly/agent_based/gen2/inventory_wifi.py
 
 from cmk.agent_based.v2 import Attributes, InventoryPlugin, InventoryResult, TableRow
-from cmk_addons.plugins.shelly.lib import DeviceInfoSection, StatusSection
+from cmk_addons.plugins.shelly.gen2_lib import DeviceInfoSection, StatusSection
 
 
 def inventorize_shelly_wifi(

@@ -18,7 +18,7 @@ from cmk_addons.plugins.shelly.agent_based.gen2.defaults import (
     GEN2_SETTINGS_DEFAULT_PARAMETERS,
     Gen2SettingsParams,
 )
-from cmk_addons.plugins.shelly.lib import (
+from cmk_addons.plugins.shelly.gen2_lib import (
     _SEVERITY_STATE,
     StatusSection,
     SwitchConfigSection,

@@ -8,7 +8,7 @@
 import json
 
 from cmk.agent_based.v2 import AgentSection, StringTable
-from cmk_addons.plugins.shelly.lib import (
+from cmk_addons.plugins.shelly.gen2_lib import (
     BleConfigSection,
     DeviceInfoSection,
     InputConfigSection,

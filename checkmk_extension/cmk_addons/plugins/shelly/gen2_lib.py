@@ -1,5 +1,5 @@
 # Copied into the OMD site at:
-#   ~/local/lib/python3/cmk_addons/plugins/shelly/lib.py
+#   ~/local/lib/python3/cmk_addons/plugins/shelly/gen2_lib.py
 #
 # Shared types and helpers used across multiple Gen2 check plugins.
 # Contains no agent_section_/check_plugin_/inventory_plugin_ objects

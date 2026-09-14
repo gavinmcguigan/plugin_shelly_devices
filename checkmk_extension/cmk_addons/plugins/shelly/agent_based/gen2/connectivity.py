@@ -15,7 +15,7 @@ from cmk_addons.plugins.shelly.agent_based.gen2.defaults import (
     Expectation,
     Gen2SettingsParams,
 )
-from cmk_addons.plugins.shelly.lib import BleConfigSection, StatusSection
+from cmk_addons.plugins.shelly.gen2_lib import BleConfigSection, StatusSection
 
 
 def discover_shelly_connectivity(

@@ -10,7 +10,7 @@ from cmk.agent_based.v2 import (
     Service,
     State,
 )
-from cmk_addons.plugins.shelly.lib import InputConfigSection, StatusSection
+from cmk_addons.plugins.shelly.gen2_lib import InputConfigSection, StatusSection
 
 
 def discover_shelly_input(
