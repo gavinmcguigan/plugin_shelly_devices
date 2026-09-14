@@ -33,6 +33,22 @@ from cmk.rulesets.v1.rule_specs import (
 )
 
 
+def _generation_field() -> SingleChoice:
+    return SingleChoice(
+        title=Title("Generation"),
+        help_text=Help(
+            "Shelly's Gen1 (legacy HTTP API) and Gen2 (RPC API) devices are "
+            "queried completely differently, so this must be set explicitly "
+            "per device -- it is not auto-detected."
+        ),
+        elements=[
+            SingleChoiceElement("gen1", Title("Gen1")),
+            SingleChoiceElement("gen2", Title("Gen2")),
+        ],
+        prefill=DefaultValue("gen2"),
+    )
+
+
 def _device_form() -> Dictionary:
     return Dictionary(
         elements={
@@ -45,6 +61,10 @@ def _device_form() -> Dictionary:
                     ),
                     custom_validate=(validators.LengthInRange(min_value=1),),
                 ),
+            ),
+            "generation": DictElement(
+                required=True,
+                parameter_form=_generation_field(),
             ),
             "host": DictElement(
                 required=True,
