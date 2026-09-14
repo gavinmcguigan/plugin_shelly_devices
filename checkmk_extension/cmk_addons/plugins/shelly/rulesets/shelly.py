@@ -314,3 +314,102 @@ rule_spec_shelly_gen2_settings = CheckParameters(
     title=Title("Shelly Gen2 settings"),
     condition=HostCondition(),
 )
+
+
+def _gen1_connectivity_parameter_form() -> Dictionary:
+    return Dictionary(
+        elements={
+            "cloud": DictElement(
+                required=True,
+                parameter_form=_expectation_field(Title("Cloud")),
+            ),
+            "mqtt": DictElement(
+                required=True,
+                parameter_form=_expectation_field(Title("MQTT")),
+            ),
+        }
+    )
+
+
+def _gen1_info_parameter_form() -> Dictionary:
+    return Dictionary(
+        elements={
+            "wifi_signal": DictElement[SimpleLevelsConfigModel[float]](
+                required=True,
+                parameter_form=SimpleLevels(
+                    title=Title("Lower levels for WiFi signal strength"),
+                    help_text=Help(
+                        "In dBm. Less negative is stronger, so these are levels "
+                        "below which the signal is considered too weak."
+                    ),
+                    level_direction=LevelDirection.LOWER,
+                    form_spec_template=Float(),
+                    prefill_levels_type=DefaultValue(LevelsType.FIXED),
+                    prefill_fixed_levels=InputHint((-70.0, -80.0)),
+                    migrate=migrate_to_float_simple_levels,
+                ),
+            ),
+            "unset_password": DictElement(
+                required=True,
+                parameter_form=_severity_field(
+                    Title("If the device has no password set"), "ignore"
+                ),
+            ),
+            "firmware_update_available": DictElement(
+                required=True,
+                parameter_form=_severity_field(
+                    Title("If a firmware update is available"), "warn"
+                ),
+            ),
+        }
+    )
+
+
+def _gen1_light_parameter_form() -> Dictionary:
+    return Dictionary(
+        elements={
+            "power": DictElement[SimpleLevelsConfigModel[float]](
+                required=True,
+                parameter_form=SimpleLevels(
+                    title=Title("Upper levels for power"),
+                    level_direction=LevelDirection.UPPER,
+                    form_spec_template=Float(),
+                    prefill_levels_type=DefaultValue(LevelsType.FIXED),
+                    prefill_fixed_levels=InputHint((2000.0, 2500.0)),
+                    migrate=migrate_to_float_simple_levels,
+                ),
+            ),
+        }
+    )
+
+
+def _gen1_settings_form() -> Dictionary:
+    return Dictionary(
+        elements={
+            "reachability": DictElement(
+                required=True,
+                parameter_form=_reachability_parameter_form(),
+            ),
+            "connectivity": DictElement(
+                required=True,
+                parameter_form=_gen1_connectivity_parameter_form(),
+            ),
+            "info": DictElement(
+                required=True,
+                parameter_form=_gen1_info_parameter_form(),
+            ),
+            "light": DictElement(
+                required=True,
+                parameter_form=_gen1_light_parameter_form(),
+            ),
+        }
+    )
+
+
+rule_spec_shelly_gen1_settings = CheckParameters(
+    name="shelly_gen1_settings",
+    topic=Topic.APPLICATIONS,
+    parameter_form=_gen1_settings_form,
+    title=Title("Shelly Gen1 settings"),
+    condition=HostCondition(),
+)
