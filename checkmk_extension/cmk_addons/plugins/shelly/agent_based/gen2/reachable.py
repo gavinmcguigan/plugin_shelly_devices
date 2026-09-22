@@ -30,10 +30,21 @@ def check_shelly_reachable(
     value_store = get_value_store()
     consecutive_failures = value_store.get("consecutive_failures", 0)
 
-    if section["reachable"]:
+    if section["reachability"] == "reachable":
         value_store["consecutive_failures"] = 0
         yield Result(state=State.OK, summary="Reachable")
         yield Metric("shelly_consecutive_failures", 0)
+        return
+
+    if section["reachability"] == "unauthorized":
+        # A config problem, not a transient network issue -- won't resolve
+        # on retry, so report it immediately instead of going through the
+        # consecutive-failures threshold.
+        yield Result(
+            state=State.CRIT,
+            summary="Authentication failed - check the configured username/password",
+        )
+        yield Metric("shelly_consecutive_failures", consecutive_failures)
         return
 
     consecutive_failures += 1

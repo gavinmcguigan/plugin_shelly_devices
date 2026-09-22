@@ -76,15 +76,17 @@ def _generation_module(generation: str) -> Any:
     raise ValueError(f"Unknown Shelly device generation: {generation!r}")
 
 
-async def fetch_device(device: Device) -> dict[str, Any] | None:
+async def fetch_device(device: Device) -> Any:
+    # Return shape is generation/outcome-specific (see gen1.py/gen2.py) --
+    # this module dispatches without interpreting it.
     return await _generation_module(device.generation).fetch_device(device)
 
 
-async def fetch_all(devices: list[Device]) -> list[dict[str, Any] | None]:
+async def fetch_all(devices: list[Device]) -> list[Any]:
     return await asyncio.gather(*(fetch_device(device) for device in devices))
 
 
-def write_device(device: Device, data: dict[str, Any] | None) -> None:
+def write_device(device: Device, data: Any) -> None:
     _generation_module(device.generation).write_device(device, data)
 
 

@@ -26,9 +26,12 @@ InputConfigSection = dict[str, Any]
 SwitchConfigSection = dict[str, Any]
 
 
+Reachability = Literal["reachable", "unreachable", "unauthorized"]
+
+
 class ReachableSection(TypedDict):
     alias: str
-    reachable: bool
+    reachability: Reachability
 
 
 def host_label_function_shelly_reachable(

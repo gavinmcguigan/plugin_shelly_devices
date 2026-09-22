@@ -26,9 +26,12 @@ class IdentitySection(TypedDict):
     mode: NotRequired[str]
 
 
+Reachability = Literal["reachable", "unreachable", "unauthorized"]
+
+
 class ReachableSection(TypedDict):
     alias: str
-    reachable: bool
+    reachability: Reachability
 
 
 def host_label_function_shelly_gen1_reachable(

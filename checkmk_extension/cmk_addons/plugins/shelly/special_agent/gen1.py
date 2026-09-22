@@ -13,6 +13,7 @@
 # Switch.GetConfig.
 
 import logging
+from dataclasses import dataclass
 from typing import Any
 
 import httpx
@@ -23,6 +24,16 @@ from cmk.special_agents.v0_unstable.agent_common import (
 from cmk_addons.plugins.shelly.special_agent.devices import Device
 
 LOGGING = logging.getLogger("agent_shelly")
+
+
+@dataclass(frozen=True)
+class AuthenticationFailed:
+    """fetch_device's result when the device returned HTTP 401 -- a device
+    that requires Basic auth but wasn't given valid credentials. Kept
+    distinct from a plain unreachable device (timeout, connection refused,
+    ...) since this failure is a configuration problem that won't resolve
+    on retry, unlike a transient network issue.
+    """
 
 
 class AsyncSessionManager:
@@ -39,7 +50,7 @@ class AsyncSessionManager:
         await self._client.aclose()
 
 
-async def fetch_device(device: Device) -> dict[str, Any] | None:
+async def fetch_device(device: Device) -> dict[str, Any] | AuthenticationFailed | None:
     session = AsyncSessionManager(
         device.username,
         device.password,
@@ -49,6 +60,14 @@ async def fetch_device(device: Device) -> dict[str, Any] | None:
     try:
         identity = await session.get(f"{base_url}/shelly")
         status = await session.get(f"{base_url}/status")
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 401:
+            LOGGING.error(
+                "Authentication failed for %s (%s)", device.alias, device.host
+            )
+            return AuthenticationFailed()
+        LOGGING.error("Failed to query %s (%s): %s", device.alias, device.host, e)
+        return None
     except httpx.HTTPError as e:
         LOGGING.error("Failed to query %s (%s): %s", device.alias, device.host, e)
         return None
@@ -60,15 +79,22 @@ async def fetch_device(device: Device) -> dict[str, Any] | None:
     }
 
 
-def write_device(device: Device, data: dict[str, Any] | None) -> None:
+def write_device(
+    device: Device,
+    data: dict[str, Any] | AuthenticationFailed | None,
+) -> None:
     with ConditionalPiggybackSection(device.alias):
+        if isinstance(data, AuthenticationFailed):
+            with SectionWriter("shelly_gen1_reachable") as w:
+                w.append_json({"alias": device.alias, "reachability": "unauthorized"})
+            return
         if data is None:
             with SectionWriter("shelly_gen1_reachable") as w:
-                w.append_json({"alias": device.alias, "reachable": False})
+                w.append_json({"alias": device.alias, "reachability": "unreachable"})
             return
         with SectionWriter("shelly_gen1_identity") as w:
             w.append_json(data["identity"])
         with SectionWriter("shelly_gen1_status") as w:
             w.append_json(data["status"])
         with SectionWriter("shelly_gen1_reachable") as w:
-            w.append_json({"alias": device.alias, "reachable": True})
+            w.append_json({"alias": device.alias, "reachability": "reachable"})
