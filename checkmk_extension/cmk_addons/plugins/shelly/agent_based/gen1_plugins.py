@@ -15,9 +15,6 @@ from cmk_addons.plugins.shelly.agent_based.gen1.connectivity import (
 from cmk_addons.plugins.shelly.agent_based.gen1.info import (
     check_plugin_shelly_gen1_info,
 )
-from cmk_addons.plugins.shelly.agent_based.gen1.inventory_wifi import (
-    inventory_plugin_shelly_gen1_wifi,
-)
 from cmk_addons.plugins.shelly.agent_based.gen1.light import (
     check_plugin_shelly_gen1_light,
 )
@@ -38,5 +35,4 @@ __all__ = [
     "check_plugin_shelly_gen1_info",
     "check_plugin_shelly_gen1_light",
     "check_plugin_shelly_gen1_reachable",
-    "inventory_plugin_shelly_gen1_wifi",
 ]
